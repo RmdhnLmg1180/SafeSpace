@@ -40,7 +40,7 @@ export default class AboutScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const creditText =
-      'Dikembangkan oleh:\nAhmad Najmi\nArfa Khalifano Fatizio\n\n' +
+      '\n\nDikembangkan oleh:\nAhmad Najmi\nArfa Khalifano Fatizio\n\n' +
       'Peserta Lomba OPSI\nSMP Negeri 8 Yogyakarta\n\n' +
       'Dibimbing oleh:\nMuhammad Abdul Aziz, S.Pd.\n\n' +
       'Tujuan Pengembangan:\nMeningkatkan kesadaran remaja terhadap pentingnya kesehatan mental digital serta memberikan edukasi preventif terkait:\n\n' +
