@@ -57,7 +57,7 @@ export default class AboutScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, height * 0.9, 'Berani Bicara. Ambil Kendali.\nKamu Tidak Sendirian.', {
+      .text(width / 2, height * 0.9, 'Berani Bicara. Ambil Kendali.\nKamu Tidak Sendirian.\n\n', {
         fontSize: getResponsiveFont(width, 28),
         color: '#8be9ff',
         fontStyle: 'bold',
