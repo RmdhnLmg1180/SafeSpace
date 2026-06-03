@@ -33,7 +33,7 @@ export default class AboutScene extends Phaser.Scene {
     });
 
     this.add
-      .text(width / 2, height * 0.29, 'Game Edukasi Interaktif Pencegahan Self-Harm pada Remaja Korban Bullying\n\n', {
+      .text(width / 2, height * 0.29, 'Game Edukasi Interaktif Pencegahan\nSelf-Harm pada Remaja Korban Bullying\n\n', {
         fontSize: getResponsiveFont(width, 26),
         color: '#cdefff',
       })
@@ -57,7 +57,7 @@ export default class AboutScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, height * 0.9, 'Berani Bicara. Ambil Kendali. Kamu Tidak Sendirian.', {
+      .text(width / 2, height * 0.9, 'Berani Bicara. Ambil Kendali.\nKamu Tidak Sendirian.', {
         fontSize: getResponsiveFont(width, 28),
         color: '#8be9ff',
         fontStyle: 'bold',
