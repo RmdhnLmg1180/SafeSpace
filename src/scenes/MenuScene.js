@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
-import { createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
+import { CRISP_FONT, createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -29,15 +29,15 @@ export default class MenuScene extends Phaser.Scene {
 
   createMobileMenu(width, height) {
     // Logo
-    const logo = this.add.image(width / 2, 120, 'logo');
-    setResponsiveLogoDisplaySize(this, logo, { mobileWidth: width * 0.38, mobileY: 88 });
+    const logo = this.add.image(width / 2, Math.max(44, height * 0.065), 'logo').setDepth(20);
+    setResponsiveLogoDisplaySize(this, logo, { mobileWidth: width * 0.31, mobileY: Math.max(44, height * 0.065) });
 
     // Gear
     this.createGearButton(width - 60, 70);
 
     // Ray
-    const ray = this.add.image(width / 2, height * 0.34, 'ray');
-    ray.setScale(0.16);
+    const ray = this.add.image(width / 2, height * 0.32, 'ray').setDepth(5);
+    ray.setScale(0.118);
 
     this.tweens.add({
       targets: ray,
@@ -148,19 +148,22 @@ export default class MenuScene extends Phaser.Scene {
       {
         disabled,
         fontSize: getResponsiveFontSize(this.scale.width, 22, { min: 13 }),
+        depth: 30,
       },
     );
   }
 
   createGearButton(x, y) {
-    const glow = this.add.circle(x, y, 42, 0x4fc3f7, 0.1);
-    const btn = this.add.circle(x, y, 34, 0x102040, 0.88).setStrokeStyle(2, 0x4fc3f7).setInteractive();
+    const glow = this.add.circle(x, y, 42, 0x4fc3f7, 0.1).setDepth(21);
+    const btn = this.add.circle(x, y, 34, 0x102040, 0.88).setStrokeStyle(2, 0x4fc3f7).setInteractive().setDepth(22);
     const icon = this.add
       .text(x, y, '⚙', {
         fontSize: '34px',
         color: '#ffffff',
+        fontFamily: CRISP_FONT,
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(23);
     btn.on('pointerover', () => {
       btn.setFillStyle(0x16325f);
       glow.setAlpha(0.22);

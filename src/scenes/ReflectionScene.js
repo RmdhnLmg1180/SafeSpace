@@ -5,11 +5,12 @@ import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager, getReflectionId } from '../utils/SaveManager';
 import {
   cleanChoiceList,
+  cleanDisplayText,
+  CRISP_FONT,
   createFittedText,
   createGlassPanel,
   createNeonButton,
   createResponsiveBackground,
-  createScrollableTextBox,
   getResponsiveFont,
   getResponsiveFontSize,
   safeLoadImage,
@@ -92,7 +93,7 @@ export default class ReflectionScene extends Phaser.Scene {
 
     loadingText.destroy();
 
-    createFittedText(
+    const scopeText = createFittedText(
       this,
       panelX,
       panelY - panelHeight * 0.38,
@@ -105,25 +106,15 @@ export default class ReflectionScene extends Phaser.Scene {
       },
       { maxWidth: panelWidth * 0.82, maxHeight: 34, minFontSize: 12 },
     );
+    scopeText.setDepth(32);
 
-    createScrollableTextBox(
-      this,
-      panelX,
-      panelY + panelHeight * 0.04,
-      panelWidth * 0.88,
-      panelHeight * 0.72,
-      reflection,
-      {
-        fontSize: isMobile ? '13px' : getResponsiveFont(width, 20, { min: 14 }),
-        color: '#ffffff',
-        align: 'left',
-        lineSpacing: isMobile ? 5 : 8,
-      },
-      { padding: isMobile ? 14 : 20 },
-    );
+    const boxWidth = Math.round(panelWidth * (isMobile ? 0.82 : 0.86));
+    const boxHeight = Math.round(panelHeight * (isMobile ? 0.54 : 0.58));
+    const boxY = panelY + panelHeight * (isMobile ? 0.03 : 0.04);
+    this.createReflectionScrollBox(panelX, boxY, boxWidth, boxHeight, reflection, isMobile);
 
     if (this.reflectionRecord?.expiresAt) {
-      createFittedText(
+      const expiryText = createFittedText(
         this,
         panelX,
         panelY + panelHeight * 0.42,
@@ -135,6 +126,7 @@ export default class ReflectionScene extends Phaser.Scene {
         },
         { maxWidth: panelWidth * 0.82, maxHeight: 22, minFontSize: 9 },
       );
+      expiryText.setDepth(32);
     }
 
     const buttonY = isMobile ? height * 0.92 : height * 0.9;
@@ -143,13 +135,13 @@ export default class ReflectionScene extends Phaser.Scene {
     createNeonButton(this, replayX, buttonY, isMobile ? width * 0.4 : 180, 52, 'MAIN ULANG', () => {
       audio.playSFX('sfx-click');
       this.replayStory();
-    }, { fontSize: getResponsiveFontSize(width, 18, { min: 12 }), strokeColor: 0xffb74d });
+    }, { fontSize: getResponsiveFontSize(width, 18, { min: 12 }), strokeColor: 0xffb74d, depth: 50 });
 
     createNeonButton(this, menuX, buttonY, isMobile ? width * 0.4 : 180, 52, 'KEMBALI MENU', () => {
       audio.playSFX('sfx-back');
       if (!this.reflectionRecord) this.reflectionRecord = this.persistReflection(reflection);
       this.scene.start('MenuScene');
-    }, { fontSize: getResponsiveFontSize(width, 18, { min: 11 }) });
+    }, { fontSize: getResponsiveFontSize(width, 18, { min: 11 }), depth: 50 });
   }
 
   persistReflection(reflection) {
@@ -178,14 +170,68 @@ export default class ReflectionScene extends Phaser.Scene {
     };
   }
 
+  createReflectionScrollBox(panelX, panelY, boxWidth, boxHeight, reflection, isMobile) {
+    const safeText = this.escapeHtml(this.cleanReflectionText(reflection));
+    const fontSize = isMobile ? 14 : 17;
+    const outerStyle = [
+      `width:${boxWidth}px`,
+      `height:${boxHeight}px`,
+      'overflow:hidden',
+      'box-sizing:border-box',
+      'border-radius:12px',
+      'background:rgba(4, 13, 29, 0.43)',
+      'contain:paint',
+      'pointer-events:auto',
+    ].join(';');
+
+    const innerStyle = [
+      'width:100%',
+      'height:100%',
+      'overflow-y:auto',
+      'overflow-x:hidden',
+      'box-sizing:border-box',
+      'padding:11px 13px 14px',
+      `font-family:${CRISP_FONT}`,
+      `font-size:${fontSize}px`,
+      'font-weight:650',
+      'line-height:1.55',
+      'color:#ffffff',
+      'text-align:left',
+      'white-space:pre-wrap',
+      'overflow-wrap:anywhere',
+      '-webkit-font-smoothing:antialiased',
+      'text-rendering:geometricPrecision',
+    ].join(';');
+
+    this.add
+      .dom(panelX, panelY, 'div', outerStyle, `<div style="${innerStyle}">${safeText}</div>`)
+      .setOrigin(0.5)
+      .setDepth(30);
+  }
+
+  cleanReflectionText(value = '') {
+    return String(value)
+      .replace(/\s*\(\s*game\s*over\s*\)\s*/gi, '')
+      .trim();
+  }
+
+  escapeHtml(value = '') {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   getReflectionScopeLabel() {
     if (this.dataForReflection.storyMode === 'linear' || this.dataForReflection.chapter === 'linear') {
-      return 'Analisis gabungan: Cyberbullying, Body Shaming, dan Cyber Grooming';
+      return cleanDisplayText('Analisis gabungan: Cyberbullying, Body Shaming, dan Cyber Grooming');
     }
 
-    if (this.dataForReflection.chapter === 2) return 'Analisis cerita: Body Shaming';
-    if (this.dataForReflection.chapter === 3) return 'Analisis cerita: Cyber Grooming';
-    return 'Analisis cerita: Cyberbullying';
+    if (this.dataForReflection.chapter === 2) return cleanDisplayText('Analisis cerita: Body Shaming');
+    if (this.dataForReflection.chapter === 3) return cleanDisplayText('Analisis cerita: Cyber Grooming');
+    return cleanDisplayText('Analisis cerita: Cyberbullying');
   }
 
   replayStory() {

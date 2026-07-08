@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { CRISP_FONT, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class IntroScene extends Phaser.Scene {
   constructor() {
@@ -28,34 +28,32 @@ export default class IntroScene extends Phaser.Scene {
       strokeColor: 0x4fc3f7,
     });
 
-    // Title
-    const title = createFittedText(
-      this,
+    const title = this.createIntroDomText(
       popupX,
       popupY - popupHeight * 0.28,
+      popupWidth * 0.82,
+      popupHeight * 0.16,
       'WELCOME TO SAFE-SPACE',
       {
-        fontSize: getResponsiveFont(width, 38, { min: 20 }),
+        size: isMobile ? 21 : 36,
         color: '#4FC3F7',
-        fontStyle: 'bold',
-        align: 'center',
+        weight: 800,
+        lineHeight: 1.12,
       },
-      { maxWidth: popupWidth * 0.82, maxHeight: popupHeight * 0.16, minFontSize: 16 },
     );
 
-    // Message
-    const message = createFittedText(
-      this,
+    const message = this.createIntroDomText(
       popupX,
-      popupY - popupHeight * 0.02,
+      popupY - popupHeight * 0.01,
+      popupWidth * 0.8,
+      popupHeight * 0.36,
       'Di dunia digital,\nkata-kata bisa menjadi tempat aman...\natau luka yang tak terlihat.',
       {
-        fontSize: getResponsiveFont(width, 24, { min: 15 }),
+        size: isMobile ? 15 : 23,
         color: '#ffffff',
-        align: 'center',
-        lineSpacing: isMobile ? 8 : 12,
+        weight: 600,
+        lineHeight: isMobile ? 1.45 : 1.5,
       },
-      { maxWidth: popupWidth * 0.78, maxHeight: popupHeight * 0.34, minFontSize: 12 },
     );
 
     // Continue button
@@ -74,6 +72,40 @@ export default class IntroScene extends Phaser.Scene {
         },
       });
     }, { fontSize: getResponsiveFontSize(this.scale.width, 22, { min: 14 }) });
+  }
+
+  createIntroDomText(x, y, w, h, text, options = {}) {
+    const style = [
+      `width:${Math.round(w)}px`,
+      `height:${Math.round(h)}px`,
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'box-sizing:border-box',
+      `font-family:${CRISP_FONT}`,
+      `font-size:${options.size}px`,
+      `font-weight:${options.weight ?? 650}`,
+      `line-height:${options.lineHeight ?? 1.4}`,
+      `color:${options.color ?? '#ffffff'}`,
+      'text-align:center',
+      'white-space:pre-line',
+      'overflow:hidden',
+      'overflow-wrap:anywhere',
+      '-webkit-font-smoothing:antialiased',
+      'text-rendering:geometricPrecision',
+      'pointer-events:none',
+    ].join(';');
+
+    return this.add.dom(x, y, 'div', style, this.escapeHtml(text)).setOrigin(0.5).setDepth(20);
+  }
+
+  escapeHtml(value = '') {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   showLogoTransition() {

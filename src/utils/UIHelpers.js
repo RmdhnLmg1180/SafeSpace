@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 
 const BODY_BACKGROUNDS = new Set([1, 2, 4, 7]);
 const GROOM_BACKGROUNDS = new Set([]);
-const TEXT_RESOLUTION = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2);
+const TEXT_RESOLUTION = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 3);
+
+export const CRISP_FONT = 'Arial, Helvetica, sans-serif';
 
 export function getDeviceType(width) {
   if (width < 768) return 'mobile';
@@ -49,8 +51,15 @@ export function safeLoadAudio(scene, key, path) {
   if (!scene.cache.audio.exists(key)) scene.load.audio(key, path);
 }
 
+export function cleanDisplayText(value = '') {
+  return String(value)
+    .replace(/\s*\(\s*game\s*over\s*\)\s*/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export function cleanChoiceLabel(choice) {
-  return String(choice ?? '').replace(new RegExp('\\s*\\(\\s*game\\s*over\\s*\\)\\s*', 'gi'), '').trim();
+  return cleanDisplayText(choice);
 }
 
 export function cleanChoiceList(choices = []) {
@@ -134,6 +143,7 @@ export function createFittedText(scene, x, y, content, style = {}, options = {})
   const fontSize = parseFontSize(style.fontSize, options.startFontSize ?? 18);
   const text = scene.add.text(x, y, content, {
     ...style,
+    fontFamily: style.fontFamily ?? CRISP_FONT,
     fontSize: `${fontSize}px`,
     resolution: style.resolution ?? options.resolution ?? TEXT_RESOLUTION,
     wordWrap: maxWidth
@@ -166,6 +176,7 @@ export function createFittedText(scene, x, y, content, style = {}, options = {})
 export const addFitText = createFittedText;
 
 export function createNeonButton(scene, x, y, w, h, label, callback, options = {}) {
+  const displayLabel = cleanDisplayText(label);
   const strokeColor = options.strokeColor ?? 0x4fc3f7;
   const fillColor = options.fillColor ?? 0x102040;
   const hoverFillColor = options.hoverFillColor ?? 0x16325f;
@@ -173,10 +184,14 @@ export function createNeonButton(scene, x, y, w, h, label, callback, options = {
   const fillAlpha = disabled ? 0.48 : options.fillAlpha ?? 0.82;
   const textColor = disabled ? options.disabledTextColor ?? '#8fa6b8' : options.textColor ?? '#ffffff';
   const hoverTextColor = options.hoverTextColor ?? '#e7f8ff';
+  const depth = options.depth ?? 0;
 
   const glow = scene.add.rectangle(x, y, w + 12, h + 12, strokeColor, disabled ? 0.02 : 0.06);
   const button = scene.add.rectangle(x, y, w, h, disabled ? 0x263849 : fillColor, fillAlpha).setStrokeStyle(2, strokeColor, disabled ? 0.32 : 0.78);
   const highlight = scene.add.rectangle(x, y - h * 0.23, w * 0.86, Math.max(8, h * 0.2), 0xffffff, disabled ? 0.02 : 0.045);
+  glow.setDepth(depth);
+  button.setDepth(depth + 1);
+  highlight.setDepth(depth + 2);
 
   if (!disabled) {
     button.setInteractive({ useHandCursor: true });
@@ -186,12 +201,13 @@ export function createNeonButton(scene, x, y, w, h, label, callback, options = {
     scene,
     x,
     y,
-    label,
+    displayLabel,
     {
       fontSize: `${options.fontSize ?? Math.min(22, Math.max(14, Math.round(h * 0.36)))}px`,
       color: textColor,
       fontStyle: 'bold',
       align: 'center',
+      fontFamily: CRISP_FONT,
     },
     {
       maxWidth: w * 0.82,
@@ -199,6 +215,7 @@ export function createNeonButton(scene, x, y, w, h, label, callback, options = {
       minFontSize: options.minFontSize ?? 10,
     },
   );
+  text.setDepth(depth + 3);
 
   if (!disabled) {
     button.on('pointerover', () => {
@@ -231,6 +248,7 @@ export function createScrollableTextBox(scene, x, y, w, h, content, style = {}, 
   const maxWidth = w - padding * 2;
   const text = scene.add.text(x - w / 2 + padding, y - h / 2 + padding, content, {
     ...style,
+    fontFamily: style.fontFamily ?? CRISP_FONT,
     resolution: style.resolution ?? options.resolution ?? TEXT_RESOLUTION,
     wordWrap: {
       ...(style.wordWrap ?? {}),

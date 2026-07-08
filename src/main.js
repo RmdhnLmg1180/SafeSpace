@@ -18,7 +18,13 @@ const config = {
   type: Phaser.AUTO,
   width: 800,
   height: 600,
-  resolution: Math.min(window.devicePixelRatio || 1, 2),
+  resolution: Math.min(window.devicePixelRatio || 1, 3),
+  render: {
+    antialias: true,
+    antialiasGL: true,
+    pixelArt: false,
+    roundPixels: true,
+  },
   parent: 'app',
   scale: {
     mode: Phaser.Scale.RESIZE,
