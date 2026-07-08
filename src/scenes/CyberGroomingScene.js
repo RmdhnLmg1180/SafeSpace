@@ -10,6 +10,7 @@ import {
   getDeviceType,
   getResponsiveFont,
   getResponsiveFontSize,
+  safeLoadImage,
   scaleCharacterByScreenHeight,
   getChapterBackgroundAsset,
   getChapterBackgroundKey,
@@ -32,15 +33,15 @@ export default class CyberGroomingScene extends Phaser.Scene {
 
   preload() {
     for (let i = 1; i <= 7; i++) {
-      this.load.image(`day${i}`, `/assets/backgrounds/day${i}.png`);
+      safeLoadImage(this, `day${i}`, `/assets/backgrounds/day${i}.png`);
       const asset = getChapterBackgroundAsset('groom', i);
-      if (asset.key !== `day${i}`) this.load.image(asset.key, asset.path);
+      if (asset.key !== `day${i}`) safeLoadImage(this, asset.key, asset.path);
     }
 
-    this.load.image('ray-neutral', '/assets/characters/ray/neutral.png');
-    this.load.image('ray-sad', '/assets/characters/ray/sad.png');
-    this.load.image('ray-panic', '/assets/characters/ray/panic.png');
-    this.load.image('ray-relief', '/assets/characters/ray/relief.png');
+    safeLoadImage(this, 'ray-neutral', '/assets/characters/ray/neutral.png');
+    safeLoadImage(this, 'ray-sad', '/assets/characters/ray/sad.png');
+    safeLoadImage(this, 'ray-panic', '/assets/characters/ray/panic.png');
+    safeLoadImage(this, 'ray-relief', '/assets/characters/ray/relief.png');
   }
 
   create() {
@@ -148,7 +149,7 @@ export default class CyberGroomingScene extends Phaser.Scene {
     const panelX = isMobile ? width * 0.5 : width * 0.6;
     const panelY = isMobile ? height * 0.38 : height * 0.42;
     const panelWidth = isMobile ? width * 0.86 : width * 0.58;
-    const panelHeight = isMobile ? height * 0.22 : height * 0.25;
+    const panelHeight = isMobile ? height * 0.28 : height * 0.25;
 
     createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { strokeColor: 0xffb74d });
     createFittedText(
@@ -165,7 +166,7 @@ export default class CyberGroomingScene extends Phaser.Scene {
       {
         maxWidth: panelWidth * 0.84,
         maxHeight: panelHeight * 0.72,
-        minFontSize: isMobile ? 12 : 15,
+        minFontSize: isMobile ? 10 : 15,
       },
     );
   }
@@ -184,7 +185,7 @@ export default class CyberGroomingScene extends Phaser.Scene {
         getAudioManager(this.game).playSFX('sfx-choice');
         this.handleChoice(choice);
       }, {
-        fontSize: getResponsiveFontSize(width, 22, { min: 13 }),
+        fontSize: getResponsiveFontSize(width, 18, { min: 10 }),
         strokeColor: 0xffb74d,
         hoverFillColor: 0x3f2b18,
       });

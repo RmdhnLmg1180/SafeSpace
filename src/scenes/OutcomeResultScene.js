@@ -1,7 +1,7 @@
 // src/scenes/OutcomeResultScene.js
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createNeonButton, getResponsiveFontSize } from '../utils/UIHelpers';
+import { cleanChoiceLabel, createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class OutcomeResultScene extends Phaser.Scene {
   constructor() {
@@ -17,9 +17,9 @@ export default class OutcomeResultScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
-    this.load.image('ray-relief', '/assets/characters/ray/relief.png');
-    this.load.image('ray-sad', '/assets/characters/ray/sad.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'ray-relief', '/assets/characters/ray/relief.png');
+    safeLoadImage(this, 'ray-sad', '/assets/characters/ray/sad.png');
   }
 
   create() {
@@ -66,13 +66,19 @@ export default class OutcomeResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const choiceText = this.choices.length ? this.choices.slice(-5).map((choice) => `- ${choice}`).join('\n') : '- Belum ada pilihan tersimpan';
-    this.add.text(panelX - panelWidth * 0.4, panelY - panelHeight * 0.05, `Pilihan terakhir:\n${choiceText}`, {
-      fontSize: isMobile ? '12px' : '16px',
-      color: '#ffffff',
-      lineSpacing: 6,
-      wordWrap: { width: panelWidth * 0.8 },
-    });
+    const choiceText = this.choices.length ? this.choices.slice(-5).map((choice) => `- ${cleanChoiceLabel(choice)}`).join('\n') : '- Belum ada pilihan tersimpan';
+    createFittedText(
+      this,
+      panelX - panelWidth * 0.4,
+      panelY - panelHeight * 0.05,
+      `Pilihan terakhir:\n${choiceText}`,
+      {
+        fontSize: isMobile ? '12px' : '16px',
+        color: '#ffffff',
+        lineSpacing: 6,
+      },
+      { origin: [0, 0], maxWidth: panelWidth * 0.8, maxHeight: panelHeight * 0.3, minFontSize: 9 },
+    );
 
     this.createButton(panelX - panelWidth * 0.24, panelY + panelHeight * 0.34, panelWidth * 0.28, 52, 'REFLECT', () => {
       audio.playSFX('sfx-click');

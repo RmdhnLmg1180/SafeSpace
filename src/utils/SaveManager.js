@@ -107,6 +107,7 @@ export const SaveManager = {
   resetAll() {
     localStorage.removeItem(SAVE_KEY);
     localStorage.removeItem(REFLECTION_KEY);
+    localStorage.removeItem('safe_space_results_v1');
   },
 };
 

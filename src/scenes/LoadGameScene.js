@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createNeonButton, getResponsiveFontSize } from '../utils/UIHelpers';
+import { createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class LoadGameScene extends Phaser.Scene {
   constructor() {
@@ -10,7 +10,7 @@ export default class LoadGameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
   }
 
   create() {
@@ -20,13 +20,19 @@ export default class LoadGameScene extends Phaser.Scene {
 
     this.createBackground(width, height, isMobile);
 
-    this.add
-      .text(width / 2, height * 0.12, 'LOAD GAME', {
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.12,
+      'LOAD GAME',
+      {
         fontSize: isMobile ? '30px' : '46px',
         color: '#4FC3F7',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+        align: 'center',
+      },
+      { maxWidth: width * 0.86, maxHeight: 54, minFontSize: 20 },
+    );
 
     const saves = SaveManager.getAllSaves();
     const slots = saves.linear ? ['linear', 1, 2, 3] : [1, 2, 3];

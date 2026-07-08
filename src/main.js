@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import PreloadScene from './scenes/PreloadScene';
 import LandingScene from './scenes/LandingScene';
 import IntroScene from './scenes/IntroScene';
 import MenuScene from './scenes/MenuScene';
@@ -17,13 +18,14 @@ const config = {
   type: Phaser.AUTO,
   width: 800,
   height: 600,
+  resolution: Math.min(window.devicePixelRatio || 1, 2),
   parent: 'app',
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   dom: { createContainer: true },
-  scene: [LandingScene, IntroScene, MenuScene, GameScene, ChapterSelectionScene, SettingsScene, LoadGameScene, AboutScene, TutorialScene, BodyShamingScene, CyberGroomingScene, ReflectionScene, OutcomeResultScene],
+  scene: [PreloadScene, LandingScene, IntroScene, MenuScene, GameScene, ChapterSelectionScene, SettingsScene, LoadGameScene, AboutScene, TutorialScene, BodyShamingScene, CyberGroomingScene, ReflectionScene, OutcomeResultScene],
   audio: {
     disableWebAudio: false,
   },

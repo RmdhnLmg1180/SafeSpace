@@ -8,6 +8,9 @@ export async function getCounselorReflection(data = {}) {
     return localReflection(payload);
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -15,6 +18,7 @@ export async function getCounselorReflection(data = {}) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
 
     if (!res.ok) throw new Error(`Reflection endpoint failed: ${res.status}`);
@@ -23,6 +27,8 @@ export async function getCounselorReflection(data = {}) {
     return data.reflection || data.text || data.choices?.[0]?.message?.content || localReflection(payload);
   } catch {
     return localReflection(payload);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -35,7 +41,11 @@ function getChapterName(chapter) {
 
 function summarizeChoices(choices = []) {
   if (!choices.length) return 'belum ada pilihan yang tercatat';
-  return choices.slice(-6).join(', ');
+  return choices.slice(-6).map(cleanChoiceLabel).join(', ');
+}
+
+function cleanChoiceLabel(choice) {
+  return String(choice ?? '').replace(new RegExp('\\s*\\(\\s*game\\s*over\\s*\\)\\s*', 'gi'), '').trim();
 }
 
 function localReflection({ chapter, choices = [], mentalShield = 0, anxiety = 0, storyMode = 'single', storyResults = {} }) {

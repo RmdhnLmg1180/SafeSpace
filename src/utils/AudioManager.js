@@ -6,6 +6,17 @@ const AUDIO_PATHS = [...AUDIO_ASSETS.music, ...AUDIO_ASSETS.sfx].reduce((paths, 
   return paths;
 }, {});
 
+const SFX_GAIN_DB = {
+  'sfx-choice': 9,
+  'sfx-back': 9,
+  'sfx-click': 1.5,
+  'sfx-success': 2,
+};
+
+function dbToGain(db = 0) {
+  return 10 ** (db / 20);
+}
+
 class AudioManager {
   constructor(game) {
     this.game = game;
@@ -13,6 +24,8 @@ class AudioManager {
     this.music = null;
     this.musicKey = null;
     this.musicCache = {};
+    this.phaserSfxPools = {};
+    this.phaserSfxCursor = {};
     this.sfxPools = {};
     this.sfxCursor = {};
     this.pendingMusic = null;
@@ -108,6 +121,49 @@ class AudioManager {
         if (audio) this.musicCache[asset.key] = audio;
       }
     });
+  }
+
+  hasPhaserAudio(key) {
+    try {
+      return !!this.game.cache?.audio?.exists(key);
+    } catch {
+      return false;
+    }
+  }
+
+  getPhaserSfxPool(key) {
+    if (!this.game.sound?.add || !this.hasPhaserAudio(key)) return null;
+
+    if (!this.phaserSfxPools[key]) {
+      try {
+        this.phaserSfxPools[key] = Array.from({ length: this.poolSize }, () => this.game.sound.add(key, { volume: 1 }));
+        this.phaserSfxCursor[key] = 0;
+      } catch {
+        this.phaserSfxPools[key] = null;
+      }
+    }
+
+    return this.phaserSfxPools[key];
+  }
+
+  playPhaserSFX(key, config = {}) {
+    const pool = this.getPhaserSfxPool(key);
+    if (!pool?.length) return false;
+
+    const cursor = this.phaserSfxCursor[key] ?? 0;
+    const sound = pool.find((candidate) => !candidate.isPlaying) || pool[cursor % pool.length];
+    this.phaserSfxCursor[key] = (cursor + 1) % pool.length;
+
+    try {
+      if (sound.isPlaying && typeof sound.stop === 'function') sound.stop();
+      const baseVolume = this.clampVolume((config.volume ?? 1) * this.settings.sfx * this.settings.master);
+      const volume = Math.min(baseVolume * dbToGain(SFX_GAIN_DB[key] ?? 0), 4);
+      if (typeof sound.setVolume === 'function') sound.setVolume(volume);
+      sound.play({ volume });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   registerUnlockHandler() {
@@ -246,6 +302,8 @@ class AudioManager {
       this.registerUnlockHandler();
       if (this.settings.mute) return;
 
+      if (this.playPhaserSFX(key, config)) return;
+
       this.prefetchAudio();
       const pool = this.sfxPools[key];
       if (!pool?.length) return;
@@ -257,7 +315,7 @@ class AudioManager {
 
       sfx.pause();
       sfx.currentTime = 0;
-      sfx.volume = (config.volume ?? 1) * this.settings.sfx * this.settings.master;
+      sfx.volume = this.clampVolume((config.volume ?? 1) * this.settings.sfx * this.settings.master * dbToGain(SFX_GAIN_DB[key] ?? 0));
       sfx.play().catch(() => {});
     } catch {
       // Ignore audio failures so gameplay remains responsive.

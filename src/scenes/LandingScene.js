@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createNeonButton, createResponsiveBackground, setResponsiveLogoDisplaySize, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
+import { createFittedText, createNeonButton, createResponsiveBackground, safeLoadImage, setResponsiveLogoDisplaySize, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
 
 export default class LandingScene extends Phaser.Scene {
   constructor() {
@@ -8,9 +8,9 @@ export default class LandingScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('ray', '/assets/characters/ray/neutral.png');
-    this.load.image('logo', '/assets/ui/logo.png');
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'ray', '/assets/characters/ray/neutral.png');
+    safeLoadImage(this, 'logo', '/assets/ui/logo.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
   }
 
   create() {

@@ -1,7 +1,7 @@
 // src/scenes/TutorialScene.js
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createNeonButton, getResponsiveFontSize } from '../utils/UIHelpers';
+import { createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class TutorialScene extends Phaser.Scene {
   constructor() {
@@ -9,8 +9,8 @@ export default class TutorialScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
-    this.load.image('ray-neutral', '/assets/characters/ray/neutral.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'ray-neutral', '/assets/characters/ray/neutral.png');
   }
 
   create() {
@@ -19,13 +19,19 @@ export default class TutorialScene extends Phaser.Scene {
 
     this.createBackground(width, height, isMobile);
 
-    this.add
-      .text(width / 2, height * 0.12, 'TUTORIAL', {
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.12,
+      'TUTORIAL',
+      {
         fontSize: isMobile ? '30px' : '46px',
         color: '#4FC3F7',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+        align: 'center',
+      },
+      { maxWidth: width * 0.86, maxHeight: 54, minFontSize: 20 },
+    );
 
     const ray = this.add.image(isMobile ? width / 2 : width * 0.18, isMobile ? height * 0.74 : height * 0.6, 'ray-neutral');
     ray.setScale(isMobile ? 0.09 : 0.15);
@@ -58,16 +64,29 @@ export default class TutorialScene extends Phaser.Scene {
     items.forEach((item, index) => {
       const y = startY + index * (isMobile ? 58 : 70);
       this.add.circle(panelX - panelWidth * 0.38, y + 6, 7, 0x4fc3f7, 1);
-      this.add.text(panelX - panelWidth * 0.34, y - 8, item[0], {
-        fontSize: isMobile ? '15px' : '20px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-      });
-      this.add.text(panelX - panelWidth * 0.34, y + 16, item[1], {
-        fontSize: isMobile ? '12px' : '16px',
-        color: '#d9e9f2',
-        wordWrap: { width: panelWidth * 0.68 },
-      });
+      createFittedText(
+        this,
+        panelX - panelWidth * 0.34,
+        y - 8,
+        item[0],
+        {
+          fontSize: isMobile ? '15px' : '20px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+        },
+        { origin: [0, 0], maxWidth: panelWidth * 0.68, maxHeight: 26, minFontSize: 10 },
+      );
+      createFittedText(
+        this,
+        panelX - panelWidth * 0.34,
+        y + 16,
+        item[1],
+        {
+          fontSize: isMobile ? '12px' : '16px',
+          color: '#d9e9f2',
+        },
+        { origin: [0, 0], maxWidth: panelWidth * 0.68, maxHeight: isMobile ? 34 : 42, minFontSize: 9 },
+      );
     });
 
     this.createButton(isMobile ? width / 2 : 120, isMobile ? height * 0.92 : height * 0.9, isMobile ? width * 0.46 : 160, 52, 'BACK', () => {

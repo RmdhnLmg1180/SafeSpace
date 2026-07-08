@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
+import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class IntroScene extends Phaser.Scene {
   constructor() {
@@ -8,8 +8,8 @@ export default class IntroScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('logo', '/assets/ui/logo.png');
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'logo', '/assets/ui/logo.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
   }
 
   create() {
@@ -19,9 +19,11 @@ export default class IntroScene extends Phaser.Scene {
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayColor: 0x000000, overlayAlpha: 0.75 });
 
     // Popup container
-    const popupWidth = isMobile ? width * 0.88 : width * 0.62;
-    const popupHeight = isMobile ? height * 0.48 : height * 0.52;
-    const { panel: popup, highlight } = createGlassPanel(this, width / 2, height / 2, popupWidth, popupHeight, {
+    const popupWidth = isMobile ? width * 0.86 : width * 0.58;
+    const popupHeight = isMobile ? Math.min(height * 0.42, 320) : Math.min(height * 0.48, 390);
+    const popupX = width / 2;
+    const popupY = height / 2;
+    const { panel: popup, highlight } = createGlassPanel(this, popupX, popupY, popupWidth, popupHeight, {
       fillAlpha: 0.88,
       strokeColor: 0x4fc3f7,
     });
@@ -29,8 +31,8 @@ export default class IntroScene extends Phaser.Scene {
     // Title
     const title = createFittedText(
       this,
-      width / 2,
-      height * 0.28,
+      popupX,
+      popupY - popupHeight * 0.28,
       'WELCOME TO SAFE-SPACE',
       {
         fontSize: getResponsiveFont(width, 38, { min: 20 }),
@@ -38,14 +40,14 @@ export default class IntroScene extends Phaser.Scene {
         fontStyle: 'bold',
         align: 'center',
       },
-      { maxWidth: popupWidth * 0.82, maxHeight: 46, minFontSize: 18 },
+      { maxWidth: popupWidth * 0.82, maxHeight: popupHeight * 0.16, minFontSize: 16 },
     );
 
     // Message
     const message = createFittedText(
       this,
-      width / 2,
-      height * 0.45,
+      popupX,
+      popupY - popupHeight * 0.02,
       'Di dunia digital,\nkata-kata bisa menjadi tempat aman...\natau luka yang tak terlihat.',
       {
         fontSize: getResponsiveFont(width, 24, { min: 15 }),
@@ -53,11 +55,11 @@ export default class IntroScene extends Phaser.Scene {
         align: 'center',
         lineSpacing: isMobile ? 8 : 12,
       },
-      { maxWidth: popupWidth * 0.78, maxHeight: popupHeight * 0.34, minFontSize: 13 },
+      { maxWidth: popupWidth * 0.78, maxHeight: popupHeight * 0.34, minFontSize: 12 },
     );
 
     // Continue button
-    this.createContinueButton(width / 2, height * 0.7, isMobile ? width * 0.55 : 260, 65, [popup, highlight, title, message]);
+    this.createContinueButton(popupX, popupY + popupHeight * 0.31, isMobile ? popupWidth * 0.58 : 260, isMobile ? 54 : 62, [popup, highlight, title, message]);
   }
 
   createContinueButton(x, y, w, h, fadeTargets) {
@@ -85,10 +87,10 @@ export default class IntroScene extends Phaser.Scene {
     this.tweens.add({
       targets: logo,
       alpha: 1,
-      duration: 1200,
+      duration: 450,
     });
 
-    this.time.delayedCall(3000, () => {
+    this.time.delayedCall(1000, () => {
       this.scene.start('MenuScene');
     });
   }

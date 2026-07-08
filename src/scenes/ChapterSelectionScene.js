@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager, getReflectionId } from '../utils/SaveManager';
-import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
+import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class ChapterSelectionScene extends Phaser.Scene {
   constructor() {
@@ -9,7 +9,7 @@ export default class ChapterSelectionScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
   }
 
   create() {

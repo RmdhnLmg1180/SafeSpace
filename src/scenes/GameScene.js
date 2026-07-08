@@ -9,6 +9,7 @@ import {
   getDeviceType,
   getResponsiveFont,
   getResponsiveFontSize,
+  safeLoadImage,
   scaleCharacterByScreenHeight,
   getChapterBackgroundKey,
 } from '../utils/UIHelpers';
@@ -34,13 +35,13 @@ export default class GameScene extends Phaser.Scene {
 
   preload() {
     for (let i = 1; i <= 7; i++) {
-      this.load.image(`day${i}`, `/assets/backgrounds/day${i}.png`);
+      safeLoadImage(this, `day${i}`, `/assets/backgrounds/day${i}.png`);
     }
 
-    this.load.image('ray-neutral', '/assets/characters/ray/neutral.png');
-    this.load.image('ray-sad', '/assets/characters/ray/sad.png');
-    this.load.image('ray-panic', '/assets/characters/ray/panic.png');
-    this.load.image('ray-relief', '/assets/characters/ray/relief.png');
+    safeLoadImage(this, 'ray-neutral', '/assets/characters/ray/neutral.png');
+    safeLoadImage(this, 'ray-sad', '/assets/characters/ray/sad.png');
+    safeLoadImage(this, 'ray-panic', '/assets/characters/ray/panic.png');
+    safeLoadImage(this, 'ray-relief', '/assets/characters/ray/relief.png');
   }
 
   create() {
@@ -162,7 +163,7 @@ export default class GameScene extends Phaser.Scene {
     const panelX = isMobile ? width * 0.5 : width * 0.6;
     const panelY = isMobile ? height * 0.38 : height * 0.42;
     const panelWidth = isMobile ? width * 0.86 : width * 0.58;
-    const panelHeight = isMobile ? height * 0.22 : height * 0.25;
+    const panelHeight = isMobile ? height * 0.28 : height * 0.25;
 
     createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { strokeColor: 0x4fc3f7 });
 
@@ -180,7 +181,7 @@ export default class GameScene extends Phaser.Scene {
       {
         maxWidth: panelWidth * 0.84,
         maxHeight: panelHeight * 0.72,
-        minFontSize: isMobile ? 12 : 15,
+        minFontSize: isMobile ? 10 : 15,
       },
     );
   }
@@ -201,7 +202,7 @@ export default class GameScene extends Phaser.Scene {
         getAudioManager(this.game).playSFX('sfx-choice');
         this.nextDay(index);
       }, {
-        fontSize: getResponsiveFontSize(width, 22, { min: 13 }),
+        fontSize: getResponsiveFontSize(width, 18, { min: 10 }),
         strokeColor: 0x4fc3f7,
       });
     });
@@ -250,7 +251,7 @@ export default class GameScene extends Phaser.Scene {
 
       4: ['Panik dan kehilangan kontrol', 'Tenangkan diri & ganti nomor'],
 
-      5: ['Melukai diri (Game Over)', 'Gunakan teknik grounding'],
+      5: ['Melukai diri', 'Gunakan teknik grounding'],
 
       6: ['Menyangkal', 'Jujur dan meminta bantuan'],
 
@@ -293,14 +294,8 @@ export default class GameScene extends Phaser.Scene {
 
       case 5:
         if (choiceIndex === 0) {
-          this.scene.start('OutcomeResultScene', {
-            ending: 'Bad',
-            chapter: 1,
-            choices: this.playerChoices,
-            mentalShield: this.mentalShield,
-            anxiety: 100 - this.mentalState,
-          });
-          return;
+          this.mentalState -= 25;
+          this.mentalShield -= 10;
         }
 
         if (choiceIndex === 1) this.mentalShield += 30;

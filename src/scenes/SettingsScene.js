@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager } from '../utils/SaveManager';
-import { createNeonButton, getResponsiveFontSize } from '../utils/UIHelpers';
+import { createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class SettingsScene extends Phaser.Scene {
   constructor() {
@@ -10,7 +10,7 @@ export default class SettingsScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
   }
 
   create() {
@@ -20,13 +20,19 @@ export default class SettingsScene extends Phaser.Scene {
 
     this.createBackground(width, height, isMobile);
 
-    this.add
-      .text(width / 2, height * 0.13, 'SETTINGS', {
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.13,
+      'SETTINGS',
+      {
         fontSize: isMobile ? '30px' : '46px',
         color: '#4FC3F7',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+        align: 'center',
+      },
+      { maxWidth: width * 0.86, maxHeight: 54, minFontSize: 20 },
+    );
 
     const panelWidth = isMobile ? width * 0.86 : 560;
     const panelHeight = isMobile ? height * 0.62 : 420;
@@ -72,11 +78,18 @@ export default class SettingsScene extends Phaser.Scene {
   }
 
   createSlider(x, y, panelWidth, label, value, onChange, isMobile) {
-    this.add.text(x - panelWidth * 0.38, y - 11, label, {
-      fontSize: isMobile ? '16px' : '20px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    });
+    createFittedText(
+      this,
+      x - panelWidth * 0.38,
+      y,
+      label,
+      {
+        fontSize: isMobile ? '16px' : '20px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+      },
+      { origin: [0, 0.5], maxWidth: panelWidth * 0.22, maxHeight: 28, minFontSize: 11 },
+    );
 
     const slider = this.add.dom(x + panelWidth * 0.12, y, 'input', `width:${Math.floor(panelWidth * 0.5)}px; accent-color:#4fc3f7;`, '').setOrigin(0.5);
     slider.node.type = 'range';
@@ -85,12 +98,18 @@ export default class SettingsScene extends Phaser.Scene {
     slider.node.step = 0.01;
     slider.node.value = value;
 
-    const valueText = this.add
-      .text(x + panelWidth * 0.4, y - 11, `${Math.round(value * 100)}%`, {
+    const valueText = createFittedText(
+      this,
+      x + panelWidth * 0.4,
+      y,
+      `${Math.round(value * 100)}%`,
+      {
         fontSize: isMobile ? '14px' : '18px',
         color: '#d9e9f2',
-      })
-      .setOrigin(0.5, 0);
+        align: 'center',
+      },
+      { maxWidth: panelWidth * 0.16, maxHeight: 26, minFontSize: 10 },
+    );
 
     slider.node.oninput = (event) => {
       const nextValue = Number(event.target.value);

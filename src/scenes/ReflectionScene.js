@@ -4,6 +4,7 @@ import { getCounselorReflection } from '../utils/ReflectionAI';
 import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager, getReflectionId } from '../utils/SaveManager';
 import {
+  cleanChoiceList,
   createFittedText,
   createGlassPanel,
   createNeonButton,
@@ -11,6 +12,7 @@ import {
   createScrollableTextBox,
   getResponsiveFont,
   getResponsiveFontSize,
+  safeLoadImage,
 } from '../utils/UIHelpers';
 
 export default class ReflectionScene extends Phaser.Scene {
@@ -19,14 +21,15 @@ export default class ReflectionScene extends Phaser.Scene {
   }
 
   init(data = {}) {
-    this.dataForReflection = data;
+    this.dataForReflection = this.cleanReflectionData(data);
     this.reflectionId = data.reflectionId || getReflectionId(data);
-    this.reflectionRecord = data.reflection ? data : SaveManager.loadReflection(this.reflectionId);
+    const savedRecord = SaveManager.loadReflection(this.reflectionId);
+    this.reflectionRecord = data.reflection ? this.cleanReflectionData(data) : savedRecord ? this.cleanReflectionData(savedRecord) : null;
   }
 
   preload() {
-    this.load.image('landingBg', '/assets/backgrounds/landing-bg.png');
-    this.load.image('ray-relief', '/assets/characters/ray/relief.png');
+    safeLoadImage(this, 'landingBg', '/assets/backgrounds/landing-bg.png');
+    safeLoadImage(this, 'ray-relief', '/assets/characters/ray/relief.png');
   }
 
   async create() {
@@ -40,7 +43,7 @@ export default class ReflectionScene extends Phaser.Scene {
     createFittedText(
       this,
       width / 2,
-      height * 0.11,
+      isMobile ? height * 0.085 : height * 0.11,
       this.dataForReflection.fromSaved ? 'REFLEKSI TERSIMPAN' : 'REFLEKSI KONSELOR',
       {
         fontSize: getResponsiveFont(width, 42, { min: 24 }),
@@ -51,23 +54,29 @@ export default class ReflectionScene extends Phaser.Scene {
       { maxWidth: width * 0.88, maxHeight: 54, minFontSize: 20 },
     );
 
-    const ray = this.add.image(isMobile ? width * 0.5 : width * 0.17, isMobile ? height * 0.28 : height * 0.56, 'ray-relief');
-    ray.setScale(isMobile ? 0.1 : 0.16);
+    const ray = this.add.image(isMobile ? width * 0.5 : width * 0.17, isMobile ? height * 0.23 : height * 0.56, 'ray-relief');
+    const rayTargetHeight = isMobile ? Math.min(height * 0.15, 120) : Math.min(height * 0.42, 280);
+    ray.setScale(rayTargetHeight / ray.height);
 
     const panelX = isMobile ? width / 2 : width * 0.62;
-    const panelY = isMobile ? height * 0.58 : height * 0.5;
-    const panelWidth = isMobile ? width * 0.86 : width * 0.58;
+    const panelY = isMobile ? height * 0.6 : height * 0.5;
+    const panelWidth = isMobile ? width * 0.88 : width * 0.58;
     const panelHeight = isMobile ? height * 0.5 : height * 0.56;
 
     createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { fillAlpha: 0.9, strokeColor: 0x4fc3f7 });
 
-    const loadingText = this.add
-      .text(panelX, panelY, 'Menganalisis keputusanmu...', {
-        fontSize: isMobile ? '16px' : '22px',
+    const loadingText = createFittedText(
+      this,
+      panelX,
+      panelY,
+      'Menganalisis keputusanmu...',
+      {
+        fontSize: isMobile ? '15px' : '22px',
         color: '#ffffff',
         align: 'center',
-      })
-      .setOrigin(0.5);
+      },
+      { maxWidth: panelWidth * 0.78, maxHeight: 38, minFontSize: 11 },
+    );
 
     let reflection = this.reflectionRecord?.reflection;
 
@@ -105,7 +114,7 @@ export default class ReflectionScene extends Phaser.Scene {
       panelHeight * 0.72,
       reflection,
       {
-        fontSize: getResponsiveFont(width, 20, { min: 14 }),
+        fontSize: isMobile ? '13px' : getResponsiveFont(width, 20, { min: 14 }),
         color: '#ffffff',
         align: 'left',
         lineSpacing: isMobile ? 5 : 8,
@@ -151,6 +160,24 @@ export default class ReflectionScene extends Phaser.Scene {
     });
   }
 
+  cleanReflectionData(data = {}) {
+    const storyResults = Object.fromEntries(
+      Object.entries(data.storyResults || {}).map(([key, value]) => [
+        key,
+        {
+          ...value,
+          choices: cleanChoiceList(value?.choices || []),
+        },
+      ]),
+    );
+
+    return {
+      ...data,
+      choices: cleanChoiceList(data.choices || []),
+      storyResults,
+    };
+  }
+
   getReflectionScopeLabel() {
     if (this.dataForReflection.storyMode === 'linear' || this.dataForReflection.chapter === 'linear') {
       return 'Analisis gabungan: Cyberbullying, Body Shaming, dan Cyber Grooming';
@@ -164,22 +191,6 @@ export default class ReflectionScene extends Phaser.Scene {
   replayStory() {
     SaveManager.deleteReflection(this.reflectionId);
     SaveManager.deleteSave(this.dataForReflection.storyMode === 'linear' ? 'linear' : this.dataForReflection.chapter || 1);
-
-    if (this.dataForReflection.storyMode === 'linear' || this.dataForReflection.chapter === 'linear') {
-      this.scene.start('GameScene', { storyMode: 'linear', slot: 'linear' });
-      return;
-    }
-
-    if (this.dataForReflection.chapter === 2) {
-      this.scene.start('BodyShamingScene', { storyMode: 'single' });
-      return;
-    }
-
-    if (this.dataForReflection.chapter === 3) {
-      this.scene.start('CyberGroomingScene', { storyMode: 'single' });
-      return;
-    }
-
-    this.scene.start('GameScene', { storyMode: 'single' });
+    this.scene.start('ChapterSelectionScene');
   }
 }

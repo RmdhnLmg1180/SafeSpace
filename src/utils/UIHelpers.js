@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 
 const BODY_BACKGROUNDS = new Set([1, 2, 4, 7]);
 const GROOM_BACKGROUNDS = new Set([]);
+const TEXT_RESOLUTION = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2);
 
 export function getDeviceType(width) {
   if (width < 768) return 'mobile';
@@ -40,6 +41,22 @@ export function createResponsiveBackground(scene, textureKey, options = {}) {
   return bg;
 }
 
+export function safeLoadImage(scene, key, path) {
+  if (!scene.textures.exists(key)) scene.load.image(key, path);
+}
+
+export function safeLoadAudio(scene, key, path) {
+  if (!scene.cache.audio.exists(key)) scene.load.audio(key, path);
+}
+
+export function cleanChoiceLabel(choice) {
+  return String(choice ?? '').replace(new RegExp('\\s*\\(\\s*game\\s*over\\s*\\)\\s*', 'gi'), '').trim();
+}
+
+export function cleanChoiceList(choices = []) {
+  return choices.map(cleanChoiceLabel).filter(Boolean);
+}
+
 export function createGlassPanel(scene, x, y, w, h, options = {}) {
   const fillColor = options.fillColor ?? 0x102040;
   const fillAlpha = options.fillAlpha ?? 0.86;
@@ -72,6 +89,15 @@ function setTextFontSize(text, size) {
 
   if (typeof text.updateText === 'function') {
     text.updateText();
+  }
+}
+
+function applyTextResolution(text) {
+  if (typeof text.setResolution === 'function') {
+    text.setResolution(TEXT_RESOLUTION);
+  } else if (text.style) {
+    text.style.resolution = TEXT_RESOLUTION;
+    if (typeof text.updateText === 'function') text.updateText();
   }
 }
 
@@ -109,6 +135,7 @@ export function createFittedText(scene, x, y, content, style = {}, options = {})
   const text = scene.add.text(x, y, content, {
     ...style,
     fontSize: `${fontSize}px`,
+    resolution: style.resolution ?? options.resolution ?? TEXT_RESOLUTION,
     wordWrap: maxWidth
       ? {
           ...(style.wordWrap ?? {}),
@@ -117,6 +144,8 @@ export function createFittedText(scene, x, y, content, style = {}, options = {})
         }
       : style.wordWrap,
   });
+
+  applyTextResolution(text);
 
   const origin = options.origin ?? 0.5;
   if (Array.isArray(origin)) {
@@ -133,6 +162,8 @@ export function createFittedText(scene, x, y, content, style = {}, options = {})
     startFontSize: fontSize,
   });
 }
+
+export const addFitText = createFittedText;
 
 export function createNeonButton(scene, x, y, w, h, label, callback, options = {}) {
   const strokeColor = options.strokeColor ?? 0x4fc3f7;
@@ -193,17 +224,21 @@ export function createNeonButton(scene, x, y, w, h, label, callback, options = {
   return { button, label: text, glow, highlight };
 }
 
+export const createButton = createNeonButton;
+
 export function createScrollableTextBox(scene, x, y, w, h, content, style = {}, options = {}) {
   const padding = options.padding ?? 20;
   const maxWidth = w - padding * 2;
   const text = scene.add.text(x - w / 2 + padding, y - h / 2 + padding, content, {
     ...style,
+    resolution: style.resolution ?? options.resolution ?? TEXT_RESOLUTION,
     wordWrap: {
       ...(style.wordWrap ?? {}),
       width: maxWidth,
       useAdvancedWrap: true,
     },
   });
+  applyTextResolution(text);
 
   const maskShape = scene.make.graphics({ x: 0, y: 0, add: false });
   maskShape.fillStyle(0xffffff);
