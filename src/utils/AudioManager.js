@@ -12,9 +12,15 @@ class AudioManager {
     this.settings = this.loadSettings();
     this.music = null;
     this.musicKey = null;
-    this.sfx = {};
+    this.musicCache = {};
+    this.sfxPools = {};
+    this.sfxCursor = {};
     this.pendingMusic = null;
     this.unlockHandlerRegistered = false;
+    this.audioUnlocked = false;
+    this.userGestureSeen = false;
+    this.poolSize = 5;
+    this.prefetchAudio();
     this.registerUnlockHandler();
   }
 
@@ -27,11 +33,21 @@ class AudioManager {
     };
 
     try {
-      return { ...defaults, ...JSON.parse(localStorage.getItem('safe_space_audio') || '{}') };
+      const settings = { ...defaults, ...JSON.parse(localStorage.getItem('safe_space_audio') || '{}') };
+      return {
+        master: this.clampVolume(settings.master),
+        music: this.clampVolume(settings.music),
+        sfx: this.clampVolume(settings.sfx),
+        mute: !!settings.mute,
+      };
     } catch {
       localStorage.removeItem('safe_space_audio');
       return defaults;
     }
+  }
+
+  clampVolume(value) {
+    return Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 1));
   }
 
   saveSettings() {
@@ -39,19 +55,19 @@ class AudioManager {
   }
 
   setMasterVolume(val) {
-    this.settings.master = val;
+    this.settings.master = this.clampVolume(val);
     this.updateVolumes();
     this.saveSettings();
   }
 
   setMusicVolume(val) {
-    this.settings.music = val;
+    this.settings.music = this.clampVolume(val);
     this.updateVolumes();
     this.saveSettings();
   }
 
   setSFXVolume(val) {
-    this.settings.sfx = val;
+    this.settings.sfx = this.clampVolume(val);
     this.saveSettings();
   }
 
@@ -67,16 +83,47 @@ class AudioManager {
     }
   }
 
+  createAudio(path) {
+    if (!path || typeof Audio === 'undefined') return null;
+    const audio = new Audio(path);
+    audio.preload = 'auto';
+    audio.crossOrigin = 'anonymous';
+    audio.load();
+    return audio;
+  }
+
+  prefetchAudio() {
+    if (typeof Audio === 'undefined') return;
+
+    AUDIO_ASSETS.sfx.forEach((asset) => {
+      if (!this.sfxPools[asset.key]) {
+        this.sfxPools[asset.key] = Array.from({ length: this.poolSize }, () => this.createAudio(asset.path)).filter(Boolean);
+        this.sfxCursor[asset.key] = 0;
+      }
+    });
+
+    AUDIO_ASSETS.music.forEach((asset) => {
+      if (!this.musicCache[asset.key]) {
+        const audio = this.createAudio(asset.path);
+        if (audio) this.musicCache[asset.key] = audio;
+      }
+    });
+  }
+
   registerUnlockHandler() {
     if (this.unlockHandlerRegistered) return;
     this.unlockHandlerRegistered = true;
 
     if (typeof document === 'undefined') return;
 
-    document.addEventListener('pointerdown', () => {
+    const unlock = () => {
+      this.userGestureSeen = true;
       this.unlockAudio();
       this.resumePendingMusic();
-    });
+    };
+
+    document.addEventListener('pointerdown', unlock, { passive: true });
+    document.addEventListener('keydown', unlock);
   }
 
   unlockAudio() {
@@ -85,32 +132,80 @@ class AudioManager {
       if (context?.state === 'suspended') {
         context.resume();
       }
+
+      if (this.userGestureSeen && !this.audioUnlocked) {
+        this.primeSfxPools();
+        this.audioUnlocked = true;
+      }
     } catch {
       // Browser audio unlock is best-effort; the game UI should never depend on it.
     }
   }
 
+  primeSfxPools() {
+    Object.values(this.sfxPools).forEach((pool) => {
+      pool.forEach((audio) => {
+        try {
+          audio.muted = true;
+          audio.currentTime = 0;
+          const playPromise = audio.play();
+          if (playPromise) {
+            playPromise
+              .then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.muted = false;
+              })
+              .catch(() => {
+                audio.muted = false;
+              });
+          } else {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = false;
+          }
+        } catch {
+          audio.muted = false;
+        }
+      });
+    });
+  }
+
+  getMusicAudio(key) {
+    this.prefetchAudio();
+    const path = AUDIO_PATHS[key];
+    if (!path || typeof Audio === 'undefined') return null;
+
+    if (!this.musicCache[key]) {
+      const audio = this.createAudio(path);
+      if (audio) this.musicCache[key] = audio;
+    }
+
+    return this.musicCache[key];
+  }
+
   playMusic(key, config = {}) {
     try {
       this.registerUnlockHandler();
-      const path = AUDIO_PATHS[key];
-      if (!path || typeof Audio === 'undefined') return;
+      const nextMusic = this.getMusicAudio(key);
+      if (!nextMusic) return;
 
       if (this.musicKey === key && this.music && !this.music.paused) {
         this.updateVolumes();
         return;
       }
 
-      if (this.music) {
+      if (this.music && this.music !== nextMusic) {
         this.music.pause();
         this.music.currentTime = 0;
       }
 
       this.unlockAudio();
       this.musicKey = key;
-      this.music = new Audio(path);
+      this.music = nextMusic;
       this.music.loop = config.loop ?? true;
       this.music.volume = this.settings.music * this.settings.master * (this.settings.mute ? 0 : 1);
+      this.music.currentTime = 0;
 
       const playPromise = this.music.play();
       if (playPromise) {
@@ -151,11 +246,17 @@ class AudioManager {
       this.registerUnlockHandler();
       if (this.settings.mute) return;
 
-      const path = AUDIO_PATHS[key];
-      if (!path || typeof Audio === 'undefined') return;
+      this.prefetchAudio();
+      const pool = this.sfxPools[key];
+      if (!pool?.length) return;
 
       this.unlockAudio();
-      const sfx = new Audio(path);
+      const cursor = this.sfxCursor[key] ?? 0;
+      const sfx = pool.find((audio) => audio.paused || audio.ended) || pool[cursor % pool.length];
+      this.sfxCursor[key] = (cursor + 1) % pool.length;
+
+      sfx.pause();
+      sfx.currentTime = 0;
       sfx.volume = (config.volume ?? 1) * this.settings.sfx * this.settings.master;
       sfx.play().catch(() => {});
     } catch {

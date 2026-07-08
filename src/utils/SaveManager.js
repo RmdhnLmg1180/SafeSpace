@@ -1,13 +1,48 @@
 // src/utils/SaveManager.js
 const SAVE_KEY = 'safe_space_saves';
+const REFLECTION_KEY = 'safe_space_reflections';
+const REFLECTION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
-function readSaves() {
+function readStorage(key) {
   try {
-    return JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+    return JSON.parse(localStorage.getItem(key) || '{}');
   } catch {
-    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(key);
     return {};
   }
+}
+
+function writeStorage(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function readSaves() {
+  return readStorage(SAVE_KEY);
+}
+
+function readReflections() {
+  return purgeExpiredReflections(readStorage(REFLECTION_KEY));
+}
+
+function purgeExpiredReflections(reflections) {
+  const now = Date.now();
+  let changed = false;
+  const valid = {};
+
+  Object.entries(reflections).forEach(([id, data]) => {
+    if (!data?.expiresAt || data.expiresAt <= now) {
+      changed = true;
+      return;
+    }
+
+    valid[id] = data;
+  });
+
+  if (changed) {
+    writeStorage(REFLECTION_KEY, valid);
+  }
+
+  return valid;
 }
 
 export const SaveManager = {
@@ -17,7 +52,7 @@ export const SaveManager = {
       ...data,
       timestamp: Date.now(),
     };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saves));
+    writeStorage(SAVE_KEY, saves);
   },
   loadGame(slot) {
     const saves = this.getAllSaves();
@@ -26,7 +61,7 @@ export const SaveManager = {
   deleteSave(slot) {
     const saves = this.getAllSaves();
     delete saves[slot];
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saves));
+    writeStorage(SAVE_KEY, saves);
   },
   getAllSaves() {
     return readSaves();
@@ -43,7 +78,41 @@ export const SaveManager = {
     });
     return lastSlot ? { slot: lastSlot, data: saves[lastSlot] } : null;
   },
+  saveReflection(id, data) {
+    const reflections = this.getAllReflections();
+    const savedAt = Date.now();
+
+    reflections[id] = {
+      ...data,
+      id,
+      savedAt,
+      expiresAt: savedAt + REFLECTION_TTL_MS,
+    };
+
+    writeStorage(REFLECTION_KEY, reflections);
+    return reflections[id];
+  },
+  loadReflection(id) {
+    const reflections = this.getAllReflections();
+    return reflections[id] || null;
+  },
+  deleteReflection(id) {
+    const reflections = this.getAllReflections();
+    delete reflections[id];
+    writeStorage(REFLECTION_KEY, reflections);
+  },
+  getAllReflections() {
+    return readReflections();
+  },
   resetAll() {
     localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(REFLECTION_KEY);
   },
 };
+
+export function getReflectionId({ storyMode = 'single', chapter = 1 } = {}) {
+  if (storyMode === 'linear' || chapter === 'linear') return 'linear';
+  return `chapter-${chapter}`;
+}
+
+export const REFLECTION_TTL_DAYS = Math.round(REFLECTION_TTL_MS / (24 * 60 * 60 * 1000));

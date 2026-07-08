@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { getAudioManager } from '../utils/AudioManager';
+import { SaveManager, getReflectionId } from '../utils/SaveManager';
+import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
 
 export default class ChapterSelectionScene extends Phaser.Scene {
   constructor() {
@@ -11,50 +14,49 @@ export default class ChapterSelectionScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-
     const isMobile = width < 768;
+    const audio = getAudioManager(this.game);
 
-    // Background sama seperti landing
-    const bg = this.add.image(width / 2, height / 2, 'landingBg');
+    createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayAlpha: 0.72 });
 
-    const scaleX = width / bg.width;
-    const scaleY = height / bg.height;
-    const scale = Math.max(scaleX, scaleY);
-
-    bg.setScale(scale);
-
-    if (isMobile) {
-      bg.setX(width * 0.62);
-    }
-
-    // Dark overlay
-    this.add.rectangle(width / 2, height / 2, width, height, 0x081426, 0.72);
-
-    // Title
-    this.add
-      .text(width / 2, height * 0.12, 'CHOOSE YOUR STORY', {
-        fontSize: isMobile ? '24px' : '46px',
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.12,
+      'CHOOSE YOUR STORY',
+      {
+        fontSize: getResponsiveFont(width, 46, { min: 24 }),
         color: '#4FC3F7',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+      },
+      { maxWidth: width * 0.86, maxHeight: 56, minFontSize: 22 },
+    );
 
-    this.add
-      .text(width / 2, height * 0.2, 'Pilih alur lengkap atau langsung masuk ke cerita yang ingin kamu mainkan.', {
-        fontSize: isMobile ? '13px' : '18px',
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.2,
+      'Pilih alur lengkap atau langsung masuk ke cerita yang ingin kamu mainkan.',
+      {
+        fontSize: getResponsiveFont(width, 18, { min: 13 }),
         color: '#d9e9f2',
         align: 'center',
-        wordWrap: { width: isMobile ? width * 0.82 : width * 0.62 },
-      })
-      .setOrigin(0.5);
+      },
+      { maxWidth: isMobile ? width * 0.82 : width * 0.62, maxHeight: 46, minFontSize: 12 },
+    );
 
-    this.createMainButton(
+    createNeonButton(
+      this,
       width / 2,
       isMobile ? height * 0.29 : height * 0.31,
       isMobile ? width * 0.82 : 420,
       isMobile ? 58 : 64,
       'IKUTI ALUR CERITA 1-3',
-      () => this.scene.start('GameScene', { chapter: 1, storyMode: 'linear' }),
+      () => {
+        audio.playSFX('sfx-click');
+        this.startLinearFlow();
+      },
+      { fontSize: getResponsiveFontSize(width, 22, { min: 14 }) },
     );
 
     const scenarios = [
@@ -78,62 +80,80 @@ export default class ChapterSelectionScene extends Phaser.Scene {
     scenarios.forEach((scenario, index) => {
       const x = isMobile ? width / 2 : width * (0.22 + index * 0.28);
       const y = isMobile ? height * (0.43 + index * 0.16) : height * 0.6;
-      const card = this.add
-        .rectangle(x, y, isMobile ? width * 0.8 : width * 0.24, isMobile ? 105 : 205, scenario.color, 0.15)
-        .setStrokeStyle(2, scenario.color)
-        .setInteractive({ useHandCursor: true });
-      this.add
-        .text(x, y - (isMobile ? 18 : 30), scenario.title, {
-          fontSize: isMobile ? '20px' : '26px',
+      const cardWidth = isMobile ? width * 0.8 : width * 0.24;
+      const cardHeight = isMobile ? 105 : 205;
+      const { panel: card } = createGlassPanel(this, x, y, cardWidth, cardHeight, {
+        fillColor: scenario.color,
+        fillAlpha: 0.13,
+        strokeColor: scenario.color,
+        highlightAlpha: 0.035,
+      });
+      card.setInteractive({ useHandCursor: true });
+
+      createFittedText(
+        this,
+        x,
+        y - (isMobile ? 18 : 30),
+        scenario.title,
+        {
+          fontSize: getResponsiveFont(width, 26, { min: 18 }),
           color: '#ffffff',
           fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-      this.add
-        .text(x, y + (isMobile ? 16 : 18), scenario.subtitle, {
-          fontSize: isMobile ? '14px' : '18px',
+          align: 'center',
+        },
+        { maxWidth: cardWidth * 0.8, maxHeight: isMobile ? 30 : 42, minFontSize: 14 },
+      );
+
+      createFittedText(
+        this,
+        x,
+        y + (isMobile ? 16 : 18),
+        scenario.subtitle,
+        {
+          fontSize: getResponsiveFont(width, 18, { min: 13 }),
           color: '#d9d9d9',
           align: 'center',
-        })
-        .setOrigin(0.5);
+        },
+        { maxWidth: cardWidth * 0.8, maxHeight: isMobile ? 34 : 54, minFontSize: 11 },
+      );
 
-      card.on('pointerover', () => card.setScale(1.05));
-      card.on('pointerout', () => card.setScale(1));
+      card.on('pointerover', () => {
+        card.setFillStyle(scenario.color, 0.22);
+      });
+      card.on('pointerout', () => {
+        card.setFillStyle(scenario.color, 0.13);
+      });
       card.on('pointerdown', () => {
-        if (index === 0) this.scene.start('GameScene', { chapter: 1, storyMode: 'single' });
-        if (index === 1) this.scene.start('BodyShamingScene', { chapter: 2, storyMode: 'single' });
-        if (index === 2) this.scene.start('CyberGroomingScene', { chapter: 3, storyMode: 'single' });
+        audio.playSFX('sfx-click');
+        if (index === 0) this.startSingleStory(1, 'GameScene');
+        if (index === 1) this.startSingleStory(2, 'BodyShamingScene');
+        if (index === 2) this.startSingleStory(3, 'CyberGroomingScene');
       });
     });
 
-    this.createMainButton(isMobile ? width / 2 : 120, isMobile ? height * 0.92 : height * 0.9, isMobile ? width * 0.46 : 160, 52, 'BACK', () => this.scene.start('MenuScene'));
+    createNeonButton(this, isMobile ? width / 2 : 120, isMobile ? height * 0.92 : height * 0.9, isMobile ? width * 0.46 : 160, 52, 'BACK', () => {
+      audio.playSFX('sfx-back');
+      this.scene.start('MenuScene');
+    });
   }
 
-  createMainButton(x, y, w, h, label, callback) {
-    const glow = this.add.rectangle(x, y, w + 14, h + 14, 0x4fc3f7, 0.08);
-    const btn = this.add.rectangle(x, y, w, h, 0x102040, 0.82).setStrokeStyle(2, 0x4fc3f7).setInteractive({ useHandCursor: true });
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-    const text = this.add
-      .text(x, y, label, {
-        fontSize: w < 200 ? '20px' : '22px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-        align: 'center',
-      })
-      .setOrigin(0.5);
+  startSingleStory(chapter, sceneKey) {
+    const reflection = SaveManager.loadReflection(getReflectionId({ chapter }));
+    if (reflection) {
+      this.scene.start('ReflectionScene', { ...reflection, fromSaved: true });
+      return;
+    }
 
-    btn.on('pointerover', () => {
-      btn.setFillStyle(0x16325f);
-      glow.setAlpha(0.22);
-      btn.setScale(1.04);
-      text.setScale(1.03);
-    });
-    btn.on('pointerout', () => {
-      btn.setFillStyle(0x102040);
-      glow.setAlpha(0.08);
-      btn.setScale(1);
-      text.setScale(1);
-    });
-    btn.on('pointerdown', callback);
+    this.scene.start(sceneKey, { chapter, storyMode: 'single' });
+  }
+
+  startLinearFlow() {
+    const reflection = SaveManager.loadReflection(getReflectionId({ storyMode: 'linear' }));
+    if (reflection) {
+      this.scene.start('ReflectionScene', { ...reflection, fromSaved: true });
+      return;
+    }
+
+    this.scene.start('GameScene', { chapter: 1, storyMode: 'linear', slot: 'linear' });
   }
 }

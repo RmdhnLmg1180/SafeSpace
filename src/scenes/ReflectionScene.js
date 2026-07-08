@@ -2,6 +2,16 @@
 import Phaser from 'phaser';
 import { getCounselorReflection } from '../utils/ReflectionAI';
 import { getAudioManager } from '../utils/AudioManager';
+import { SaveManager, getReflectionId } from '../utils/SaveManager';
+import {
+  createFittedText,
+  createGlassPanel,
+  createNeonButton,
+  createResponsiveBackground,
+  createScrollableTextBox,
+  getResponsiveFont,
+  getResponsiveFontSize,
+} from '../utils/UIHelpers';
 
 export default class ReflectionScene extends Phaser.Scene {
   constructor() {
@@ -10,6 +20,8 @@ export default class ReflectionScene extends Phaser.Scene {
 
   init(data = {}) {
     this.dataForReflection = data;
+    this.reflectionId = data.reflectionId || getReflectionId(data);
+    this.reflectionRecord = data.reflection ? data : SaveManager.loadReflection(this.reflectionId);
   }
 
   preload() {
@@ -23,15 +35,21 @@ export default class ReflectionScene extends Phaser.Scene {
     const audio = getAudioManager(this.game);
     audio.playMusic('music-reflection-theme');
 
-    this.createBackground(width, height, isMobile);
+    createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayAlpha: 0.72 });
 
-    this.add
-      .text(width / 2, height * 0.12, 'REFLEKSI KONSELOR', {
-        fontSize: isMobile ? '26px' : '42px',
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.11,
+      this.dataForReflection.fromSaved ? 'REFLEKSI TERSIMPAN' : 'REFLEKSI KONSELOR',
+      {
+        fontSize: getResponsiveFont(width, 42, { min: 24 }),
         color: '#4FC3F7',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+        align: 'center',
+      },
+      { maxWidth: width * 0.88, maxHeight: 54, minFontSize: 20 },
+    );
 
     const ray = this.add.image(isMobile ? width * 0.5 : width * 0.17, isMobile ? height * 0.28 : height * 0.56, 'ray-relief');
     ray.setScale(isMobile ? 0.1 : 0.16);
@@ -41,7 +59,7 @@ export default class ReflectionScene extends Phaser.Scene {
     const panelWidth = isMobile ? width * 0.86 : width * 0.58;
     const panelHeight = isMobile ? height * 0.5 : height * 0.56;
 
-    this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x102040, 0.9).setStrokeStyle(2, 0x4fc3f7);
+    createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { fillAlpha: 0.9, strokeColor: 0x4fc3f7 });
 
     const loadingText = this.add
       .text(panelX, panelY, 'Menganalisis keputusanmu...', {
@@ -51,59 +69,117 @@ export default class ReflectionScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    let reflection = 'Kamu sudah melewati situasi yang berat. Ambil jeda, kenali emosimu, dan cari dukungan dari orang yang kamu percaya.';
+    let reflection = this.reflectionRecord?.reflection;
 
-    try {
-      reflection = await getCounselorReflection(this.dataForReflection);
-    } catch {
-      reflection = 'Refleksi otomatis belum tersedia, tapi pilihanmu tetap penting. Perhatikan tanda bahaya, jaga batas aman, dan minta bantuan saat tekanan terasa terlalu besar.';
+    if (!reflection) {
+      try {
+        reflection = await getCounselorReflection(this.dataForReflection);
+      } catch {
+        reflection = 'Refleksi otomatis belum tersedia, tapi pilihanmu tetap penting. Perhatikan tanda bahaya, jaga batas aman, dan minta bantuan saat tekanan terasa terlalu besar.';
+      }
+
+      this.reflectionRecord = this.persistReflection(reflection);
     }
 
     loadingText.destroy();
 
-    this.add
-      .text(panelX, panelY - panelHeight * 0.08, reflection, {
-        fontSize: isMobile ? '15px' : '21px',
+    createFittedText(
+      this,
+      panelX,
+      panelY - panelHeight * 0.38,
+      this.getReflectionScopeLabel(),
+      {
+        fontSize: getResponsiveFont(width, 20, { min: 13 }),
+        color: '#8be9ff',
+        fontStyle: 'bold',
+        align: 'center',
+      },
+      { maxWidth: panelWidth * 0.82, maxHeight: 34, minFontSize: 12 },
+    );
+
+    createScrollableTextBox(
+      this,
+      panelX,
+      panelY + panelHeight * 0.04,
+      panelWidth * 0.88,
+      panelHeight * 0.72,
+      reflection,
+      {
+        fontSize: getResponsiveFont(width, 20, { min: 14 }),
         color: '#ffffff',
         align: 'left',
-        lineSpacing: 8,
-        wordWrap: { width: panelWidth * 0.82 },
-      })
-      .setOrigin(0.5);
+        lineSpacing: isMobile ? 5 : 8,
+      },
+      { padding: isMobile ? 14 : 20 },
+    );
 
-    this.createButton(isMobile ? width / 2 : 120, isMobile ? height * 0.92 : height * 0.9, isMobile ? width * 0.46 : 160, 52, 'BACK', () => {
+    if (this.reflectionRecord?.expiresAt) {
+      createFittedText(
+        this,
+        panelX,
+        panelY + panelHeight * 0.42,
+        `Tersimpan sampai ${new Date(this.reflectionRecord.expiresAt).toLocaleDateString('id-ID')}`,
+        {
+          fontSize: getResponsiveFont(width, 14, { min: 10 }),
+          color: '#a9c7d8',
+          align: 'center',
+        },
+        { maxWidth: panelWidth * 0.82, maxHeight: 22, minFontSize: 9 },
+      );
+    }
+
+    const buttonY = isMobile ? height * 0.92 : height * 0.9;
+    const replayX = isMobile ? width * 0.28 : width * 0.18;
+    const menuX = isMobile ? width * 0.72 : width * 0.36;
+    createNeonButton(this, replayX, buttonY, isMobile ? width * 0.4 : 180, 52, 'MAIN ULANG', () => {
+      audio.playSFX('sfx-click');
+      this.replayStory();
+    }, { fontSize: getResponsiveFontSize(width, 18, { min: 12 }), strokeColor: 0xffb74d });
+
+    createNeonButton(this, menuX, buttonY, isMobile ? width * 0.4 : 180, 52, 'KEMBALI MENU', () => {
       audio.playSFX('sfx-back');
+      if (!this.reflectionRecord) this.reflectionRecord = this.persistReflection(reflection);
       this.scene.start('MenuScene');
+    }, { fontSize: getResponsiveFontSize(width, 18, { min: 11 }) });
+  }
+
+  persistReflection(reflection) {
+    return SaveManager.saveReflection(this.reflectionId, {
+      ...this.dataForReflection,
+      reflectionId: this.reflectionId,
+      reflection,
     });
   }
 
-  createBackground(width, height, isMobile) {
-    const bg = this.add.image(width / 2, height / 2, 'landingBg');
-    bg.setScale(Math.max(width / bg.width, height / bg.height));
-    if (isMobile) bg.setX(width * 0.62);
-    this.add.rectangle(width / 2, height / 2, width, height, 0x081426, 0.72);
+  getReflectionScopeLabel() {
+    if (this.dataForReflection.storyMode === 'linear' || this.dataForReflection.chapter === 'linear') {
+      return 'Analisis gabungan: Cyberbullying, Body Shaming, dan Cyber Grooming';
+    }
+
+    if (this.dataForReflection.chapter === 2) return 'Analisis cerita: Body Shaming';
+    if (this.dataForReflection.chapter === 3) return 'Analisis cerita: Cyber Grooming';
+    return 'Analisis cerita: Cyberbullying';
   }
 
-  createButton(x, y, w, h, label, callback) {
-    const glow = this.add.rectangle(x, y, w + 14, h + 14, 0x4fc3f7, 0.08);
-    const btn = this.add.rectangle(x, y, w, h, 0x102040, 0.82).setStrokeStyle(2, 0x4fc3f7).setInteractive({ useHandCursor: true });
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-    this.add
-      .text(x, y, label, {
-        fontSize: '20px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+  replayStory() {
+    SaveManager.deleteReflection(this.reflectionId);
+    SaveManager.deleteSave(this.dataForReflection.storyMode === 'linear' ? 'linear' : this.dataForReflection.chapter || 1);
 
-    btn.on('pointerover', () => {
-      btn.setFillStyle(0x16325f);
-      glow.setAlpha(0.22);
-    });
-    btn.on('pointerout', () => {
-      btn.setFillStyle(0x102040);
-      glow.setAlpha(0.08);
-    });
-    btn.on('pointerdown', callback);
+    if (this.dataForReflection.storyMode === 'linear' || this.dataForReflection.chapter === 'linear') {
+      this.scene.start('GameScene', { storyMode: 'linear', slot: 'linear' });
+      return;
+    }
+
+    if (this.dataForReflection.chapter === 2) {
+      this.scene.start('BodyShamingScene', { storyMode: 'single' });
+      return;
+    }
+
+    if (this.dataForReflection.chapter === 3) {
+      this.scene.start('CyberGroomingScene', { storyMode: 'single' });
+      return;
+    }
+
+    this.scene.start('GameScene', { storyMode: 'single' });
   }
 }

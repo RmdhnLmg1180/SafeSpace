@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
+import { createFittedText, createNeonButton, getResponsiveFontSize } from '../utils/UIHelpers';
 
 export default class LoadGameScene extends Phaser.Scene {
   constructor() {
@@ -28,14 +29,15 @@ export default class LoadGameScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const saves = SaveManager.getAllSaves();
-    const slots = [1, 2, 3];
+    const slots = saves.linear ? ['linear', 1, 2, 3] : [1, 2, 3];
     const cardWidth = isMobile ? width * 0.86 : width * 0.62;
-    const cardHeight = isMobile ? 112 : 122;
-    const startY = isMobile ? height * 0.28 : height * 0.3;
+    const cardHeight = isMobile ? (saves.linear ? 88 : 112) : saves.linear ? 104 : 122;
+    const startY = isMobile ? (saves.linear ? height * 0.24 : height * 0.28) : height * 0.3;
+    const gap = isMobile ? 12 : 20;
 
     slots.forEach((slot, index) => {
       const data = saves[slot];
-      const y = startY + index * (cardHeight + 20);
+      const y = startY + index * (cardHeight + gap);
       this.createSlotCard(width / 2, y, cardWidth, cardHeight, slot, data, audio, isMobile);
     });
 
@@ -55,22 +57,35 @@ export default class LoadGameScene extends Phaser.Scene {
   createSlotCard(x, y, w, h, slot, data, audio, isMobile) {
     this.add.rectangle(x, y, w, h, 0x102040, 0.9).setStrokeStyle(2, data ? 0x4fc3f7 : 0x446176);
 
-    this.add.text(x - w * 0.43, y - h * 0.32, `SLOT ${slot}`, {
-      fontSize: isMobile ? '18px' : '22px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    });
+    createFittedText(
+      this,
+      x - w * 0.43,
+      y - h * 0.32,
+      slot === 'linear' ? 'ALUR 1-3' : `SLOT ${slot}`,
+      {
+        fontSize: isMobile ? '17px' : '22px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+      },
+      { origin: [0, 0.5], maxWidth: w * 0.5, maxHeight: 28, minFontSize: 11 },
+    );
 
     const detail = data
       ? `Chapter ${data.currentChapter || 1} | Day ${data.currentDay || 1} | Shield ${data.mentalShield ?? 0} | Anxiety ${data.mentalState ?? 0}\n${new Date(data.timestamp).toLocaleString()}`
       : 'Kosong';
 
-    this.add.text(x - w * 0.43, y - h * 0.02, detail, {
-      fontSize: isMobile ? '12px' : '16px',
-      color: data ? '#d9e9f2' : '#8fa6b8',
-      lineSpacing: 6,
-      wordWrap: { width: w * 0.54 },
-    });
+    createFittedText(
+      this,
+      x - w * 0.43,
+      y - h * 0.02,
+      detail,
+      {
+        fontSize: isMobile ? '12px' : '16px',
+        color: data ? '#d9e9f2' : '#8fa6b8',
+        lineSpacing: isMobile ? 3 : 6,
+      },
+      { origin: [0, 0.5], maxWidth: w * 0.54, maxHeight: h * 0.48, minFontSize: 9 },
+    );
 
     if (!data) return;
 
@@ -87,26 +102,10 @@ export default class LoadGameScene extends Phaser.Scene {
   }
 
   createButton(x, y, w, h, label, callback, strokeColor = 0x4fc3f7) {
-    const glow = this.add.rectangle(x, y, w + 12, h + 12, strokeColor, 0.08);
-    const btn = this.add.rectangle(x, y, w, h, 0x102040, 0.82).setStrokeStyle(2, strokeColor).setInteractive({ useHandCursor: true });
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-    this.add
-      .text(x, y, label, {
-        fontSize: w < 120 ? '15px' : '20px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    btn.on('pointerover', () => {
-      btn.setFillStyle(0x16325f);
-      glow.setAlpha(0.22);
+    return createNeonButton(this, x, y, w, h, label, callback, {
+      strokeColor,
+      fontSize: getResponsiveFontSize(this.scale.width, w < 120 ? 15 : 20, { min: 10 }),
     });
-    btn.on('pointerout', () => {
-      btn.setFillStyle(0x102040);
-      glow.setAlpha(0.08);
-    });
-    btn.on('pointerdown', callback);
   }
 
   getSceneForChapter(chapter) {

@@ -1,31 +1,73 @@
 // src/utils/ReflectionAI.js
-export async function getCounselorReflection({ chapter, choices, mentalShield, anxiety }) {
+export async function getCounselorReflection(data = {}) {
+  const { chapter, choices, mentalShield, anxiety, storyMode, storyResults } = data;
+  const payload = { chapter, choices, mentalShield, anxiety, storyMode, storyResults };
+  const endpoint = import.meta.env.VITE_REFLECTION_ENDPOINT;
+
+  if (!endpoint) {
+    return localReflection(payload);
+  }
+
   try {
-    // Ganti dengan endpoint Gemini/OpenAI Anda
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer YOUR_API_KEY',
       },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `Kamu adalah konselor kesehatan mental digital. Analisis coping style, evaluasi keputusan, dan rekomendasikan coping sehat berdasarkan data berikut: chapter=${chapter}, choices=${JSON.stringify(choices)}, mentalShield=${mentalShield}, anxiety=${anxiety}.`,
-          },
-        ],
-      }),
+      body: JSON.stringify(payload),
     });
+
+    if (!res.ok) throw new Error(`Reflection endpoint failed: ${res.status}`);
+
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || localReflection({ chapter, choices, mentalShield, anxiety });
+    return data.reflection || data.text || data.choices?.[0]?.message?.content || localReflection(payload);
   } catch {
-    return localReflection({ chapter, choices, mentalShield, anxiety });
+    return localReflection(payload);
   }
 }
 
-function localReflection({ chapter, choices, mentalShield, anxiety }) {
-  // Fallback lokal sederhana
-  return `Refleksi: Pada chapter ${chapter}, kamu membuat keputusan ${choices.length} kali. Mental shield: ${mentalShield}, anxiety: ${anxiety}. Cobalah coping sehat seperti berbicara dengan orang terpercaya dan menjaga self-care.`;
+function getChapterName(chapter) {
+  if (chapter === 'linear') return 'Alur Cerita 1-3';
+  if (chapter === 2) return 'Body Shaming';
+  if (chapter === 3) return 'Cyber Grooming';
+  return 'Cyberbullying';
+}
+
+function summarizeChoices(choices = []) {
+  if (!choices.length) return 'belum ada pilihan yang tercatat';
+  return choices.slice(-6).join(', ');
+}
+
+function localReflection({ chapter, choices = [], mentalShield = 0, anxiety = 0, storyMode = 'single', storyResults = {} }) {
+  const chapterName = getChapterName(chapter);
+  const safeShield = Math.round(mentalShield);
+  const safeAnxiety = Math.round(anxiety);
+
+  if (storyMode === 'linear' || chapter === 'linear') {
+    const summaries = Object.values(storyResults)
+      .map((result) => `${getChapterName(result.chapter)}: ${summarizeChoices(result.choices)}`)
+      .join('\n');
+
+    return [
+      `Refleksi gabungan ${chapterName}`,
+      '',
+      `Kamu sudah menyelesaikan tiga situasi digital yang berbeda. Pola pilihanmu menunjukkan cara Ray menghadapi tekanan sosial, komentar tubuh, dan ajakan tidak aman dari orang asing.`,
+      '',
+      summaries || `Pilihan yang tercatat: ${summarizeChoices(choices)}.`,
+      '',
+      `Mental Shield akhir berada di ${safeShield}, sementara Anxiety berada di ${safeAnxiety}. Nilai ini bukan label diri, melainkan pengingat bahwa dukungan, batas aman, dan jeda dari layar bisa mengubah arah situasi.`,
+      '',
+      'Langkah sehat yang bisa kamu bawa ke dunia nyata: simpan bukti saat diserang, batasi akun yang menyakiti, jangan merahasiakan percakapan yang membuat tidak nyaman, dan cari orang dewasa tepercaya ketika tekanan mulai terasa berat.',
+    ].join('\n');
+  }
+
+  return [
+    `Refleksi ${chapterName}`,
+    '',
+    `Kamu membuat ${choices.length} keputusan dalam cerita ini. Pilihan yang paling terlihat: ${summarizeChoices(choices)}.`,
+    '',
+    `Mental Shield kamu berada di ${safeShield}, dan Anxiety berada di ${safeAnxiety}. Saat tekanan digital muncul, yang paling penting adalah memperlambat reaksi, menjaga batas, dan tidak menghadapi semuanya sendirian.`,
+    '',
+    'Coping sehat yang bisa dicoba: tarik napas dan beri jeda sebelum membalas, screenshot bukti, blokir atau laporkan akun yang berbahaya, ceritakan ke teman atau orang dewasa tepercaya, dan lakukan grounding ketika tubuh terasa panik.',
+  ].join('\n');
 }

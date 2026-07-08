@@ -1,7 +1,7 @@
 // src/scenes/AboutScene.js
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createResponsiveBackground, getResponsiveFont, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
+import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, createScrollableTextBox, getResponsiveFont, getResponsiveFontSize, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
 
 export default class AboutScene extends Phaser.Scene {
   constructor() {
@@ -19,8 +19,11 @@ export default class AboutScene extends Phaser.Scene {
 
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.6, overlayAlpha: 0.72 });
 
-    this.add.rectangle(width / 2, height / 2, width * 0.9, height * 0.86, 0x102040, 0.45).setStrokeStyle(2, 0x77d6ff, 0.6);
-    this.add.rectangle(width / 2, height * 0.16, width * 0.78, height * 0.18, 0xffffff, 0.05);
+    createGlassPanel(this, width / 2, height / 2, width * 0.9, height * 0.86, {
+      fillAlpha: 0.45,
+      strokeColor: 0x77d6ff,
+      strokeAlpha: 0.6,
+    });
 
     const logo = this.add.image(width / 2, height * 0.12, 'logo');
     setResponsiveLogoDisplaySize(this, logo, {
@@ -32,12 +35,18 @@ export default class AboutScene extends Phaser.Scene {
       mobileY: height * 0.13,
     });
 
-    this.add
-      .text(width / 2, height * 0.29, 'Game Edukasi Interaktif Pencegahan\nSelf-Harm pada Remaja Korban Bullying\n\n', {
-        fontSize: getResponsiveFont(width, 26),
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.28,
+      'Game Edukasi Interaktif Pencegahan\nSelf-Harm pada Remaja Korban Bullying',
+      {
+        fontSize: getResponsiveFont(width, 26, { min: 14 }),
         color: '#cdefff',
-      })
-      .setOrigin(0.5);
+        align: 'center',
+      },
+      { maxWidth: width * 0.82, maxHeight: height * 0.12, minFontSize: 12 },
+    );
 
     const creditText =
       '\n\nDikembangkan oleh:\nAhmad Najmi\nArfa Khalifano Fatizio\n\n' +
@@ -46,51 +55,46 @@ export default class AboutScene extends Phaser.Scene {
       'Tujuan Pengembangan:\nMeningkatkan kesadaran remaja terhadap pentingnya kesehatan mental digital serta memberikan edukasi preventif terkait:\n\n' +
       '- Cyberbullying\n- Body Shaming\n- Cyber Grooming\n- Pencegahan Self-Harm\n\n';
 
-    this.add
-      .text(width / 2, height * 0.56, creditText, {
-        fontSize: getResponsiveFont(width, 24),
+    createScrollableTextBox(
+      this,
+      width / 2,
+      height * 0.57,
+      width * (isMobile ? 0.78 : 0.66),
+      height * (isMobile ? 0.38 : 0.42),
+      creditText.trim(),
+      {
+        fontSize: getResponsiveFont(width, 22, { min: 13 }),
         color: '#ffffff',
         align: 'center',
-        lineSpacing: 8,
-        wordWrap: { width: width * (isMobile ? 0.78 : 0.7) },
-      })
-      .setOrigin(0.5);
+        lineSpacing: isMobile ? 5 : 8,
+      },
+      { padding: isMobile ? 10 : 18 },
+    );
 
-    this.add
-      .text(width / 2, height * 0.9, 'Berani Bicara. Ambil Kendali.\nKamu Tidak Sendirian.\n\n', {
-        fontSize: getResponsiveFont(width, 28),
+    createFittedText(
+      this,
+      width / 2,
+      height * 0.83,
+      'Berani Bicara. Ambil Kendali.\nKamu Tidak Sendirian.',
+      {
+        fontSize: getResponsiveFont(width, 28, { min: 15 }),
         color: '#8be9ff',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+        align: 'center',
+      },
+      { maxWidth: width * 0.82, maxHeight: height * 0.1, minFontSize: 13 },
+    );
 
-    this.createButton(isMobile ? width / 2 : 120, isMobile ? height * 0.96 : height * 0.93, isMobile ? width * 0.46 : 160, 52, 'BACK', () => {
+    this.createButton(isMobile ? width / 2 : 120, isMobile ? height * 0.93 : height * 0.93, isMobile ? width * 0.46 : 160, 52, 'BACK', () => {
       getAudioManager(this.game).playSFX('sfx-back');
       this.scene.start('MenuScene');
     });
   }
 
   createButton(x, y, w, h, label, callback) {
-    const glow = this.add.rectangle(x, y, w + 14, h + 14, 0x4fc3f7, 0.08);
-    const btn = this.add.rectangle(x, y, w, h, 0x102040, 0.82).setStrokeStyle(2, 0x4fc3f7).setInteractive({ useHandCursor: true });
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-    this.add
-      .text(x, y, label, {
-        fontSize: '20px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    btn.on('pointerover', () => {
-      btn.setFillStyle(0x16325f);
-      glow.setAlpha(0.22);
+    return createNeonButton(this, x, y, w, h, label, callback, {
+      fontSize: getResponsiveFontSize(this.scale.width, 20, { min: 12 }),
     });
-    btn.on('pointerout', () => {
-      btn.setFillStyle(0x102040);
-      glow.setAlpha(0.08);
-    });
-    btn.on('pointerdown', callback);
   }
 }
 

@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager } from '../utils/SaveManager';
+import { createNeonButton, getResponsiveFontSize } from '../utils/UIHelpers';
 
 export default class SettingsScene extends Phaser.Scene {
   constructor() {
@@ -99,28 +100,9 @@ export default class SettingsScene extends Phaser.Scene {
   }
 
   createButton(x, y, w, h, label, callback, strokeColor = 0x4fc3f7) {
-    const glow = this.add.rectangle(x, y, w + 14, h + 14, strokeColor, 0.08);
-    const btn = this.add.rectangle(x, y, w, h, 0x102040, 0.82).setStrokeStyle(2, strokeColor).setInteractive({ useHandCursor: true });
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-    const text = this.add
-      .text(x, y, label, {
-        fontSize: w < 180 ? '18px' : '20px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-        align: 'center',
-      })
-      .setOrigin(0.5);
-
-    btn.on('pointerover', () => {
-      btn.setFillStyle(0x16325f);
-      glow.setAlpha(0.22);
+    return createNeonButton(this, x, y, w, h, label, callback, {
+      strokeColor,
+      fontSize: getResponsiveFontSize(this.scale.width, w < 180 ? 18 : 20, { min: 11 }),
     });
-    btn.on('pointerout', () => {
-      btn.setFillStyle(0x102040);
-      glow.setAlpha(0.08);
-    });
-    btn.on('pointerdown', callback);
-
-    return { button: btn, label: text };
   }
 }

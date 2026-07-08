@@ -1,8 +1,19 @@
 // src/scenes/CyberGroomingScene.js
 import Phaser from 'phaser';
-import { SaveManager } from '../utils/SaveManager';
+import { SaveManager, getReflectionId } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
-import { createResponsiveBackground, getResponsiveFont, getDeviceType, scaleCharacterByScreenHeight, getChapterBackgroundKey } from '../utils/UIHelpers';
+import {
+  createFittedText,
+  createGlassPanel,
+  createNeonButton,
+  createResponsiveBackground,
+  getDeviceType,
+  getResponsiveFont,
+  getResponsiveFontSize,
+  scaleCharacterByScreenHeight,
+  getChapterBackgroundAsset,
+  getChapterBackgroundKey,
+} from '../utils/UIHelpers';
 
 export default class CyberGroomingScene extends Phaser.Scene {
   constructor() {
@@ -14,14 +25,16 @@ export default class CyberGroomingScene extends Phaser.Scene {
     this.mentalShield = data.mentalShield || 45;
     this.mentalState = data.mentalState || 65;
     this.playerChoices = data.playerChoices || [];
-    this.slot = data.slot;
     this.storyMode = data.storyMode || 'single';
+    this.slot = data.slot || (this.storyMode === 'linear' ? 'linear' : 3);
+    this.flowResults = data.flowResults || {};
   }
 
   preload() {
     for (let i = 1; i <= 7; i++) {
       this.load.image(`day${i}`, `/assets/backgrounds/day${i}.png`);
-      this.load.image(`groom-day${i}`, `/assets/backgrounds/groom-day${i}.png`);
+      const asset = getChapterBackgroundAsset('groom', i);
+      if (asset.key !== `day${i}`) this.load.image(asset.key, asset.path);
     }
 
     this.load.image('ray-neutral', '/assets/characters/ray/neutral.png');
@@ -45,13 +58,12 @@ export default class CyberGroomingScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const device = getDeviceType(width);
 
-    const preferred = getChapterBackgroundKey('groom', this.currentDay);
-    createResponsiveBackground(this, this.textures.exists(preferred) ? preferred : `day${this.currentDay}`, { mobileFocalX: 0.62 });
+    createResponsiveBackground(this, getChapterBackgroundKey('groom', this.currentDay), { mobileFocalX: 0.62 });
 
     this.createTopPanel(width, height, device);
     this.createCharacter(width, height, device);
-    this.createStoryPanel(width, height);
-    this.createChoicePanel(width, height);
+    this.createStoryPanel(width, height, device);
+    this.createChoicePanel(width, height, device);
   }
 
   createTopPanel(width, height, device) {
@@ -60,12 +72,24 @@ export default class CyberGroomingScene extends Phaser.Scene {
     const panelHeight = isMobile ? 108 : 118;
     const panelX = isMobile ? width * 0.5 : width * 0.2;
 
-    this.add.rectangle(panelX, height * 0.095, panelWidth, panelHeight, 0x102040, 0.52).setStrokeStyle(2, 0xffb74d);
-    this.add.text(panelX - panelWidth * 0.42, height * 0.05, 'STATUS MENTAL', {
-      fontSize: getResponsiveFont(width, 20),
-      color: '#ffffff',
-      fontStyle: 'bold',
+    createGlassPanel(this, panelX, height * 0.095, panelWidth, panelHeight, {
+      fillColor: 0x102040,
+      fillAlpha: 0.52,
+      strokeColor: 0xffb74d,
+      highlightAlpha: 0.025,
     });
+    createFittedText(
+      this,
+      panelX - panelWidth * 0.42,
+      height * 0.05,
+      'STATUS MENTAL',
+      {
+        fontSize: getResponsiveFont(width, 20),
+        color: '#ffffff',
+        fontStyle: 'bold',
+      },
+      { origin: [0, 0.5], maxWidth: panelWidth * 0.82, maxHeight: 28, minFontSize: 11 },
+    );
 
     const barWidth = panelWidth * 0.86;
     const barHeight = isMobile ? 20 : 24;
@@ -77,17 +101,31 @@ export default class CyberGroomingScene extends Phaser.Scene {
     const fillBar = this.add.rectangle(panelX - barWidth / 2 + fillWidth / 2, height * 0.09, fillWidth, barHeight, this.getMentalColor());
     this.tweens.add({ targets: fillBar, width: fillWidth, duration: 450, ease: 'Sine.easeOut' });
 
-    this.add.text(panelX - panelWidth * 0.42, height * 0.12, `Netral | Anxiety ${100 - safeMental} | Shield ${this.mentalShield}%`, {
-      fontSize: getResponsiveFont(width, 18),
-      color: '#ffffff',
-    });
+    createFittedText(
+      this,
+      panelX - panelWidth * 0.42,
+      height * 0.12,
+      `Netral | Anxiety ${100 - safeMental} | Shield ${this.mentalShield}%`,
+      {
+        fontSize: getResponsiveFont(width, 18),
+        color: '#ffffff',
+      },
+      { origin: [0, 0.5], maxWidth: panelWidth * 0.84, maxHeight: 28, minFontSize: 10 },
+    );
 
-    this.add.text(width * 0.82, height * 0.05, `Cyber Grooming\nHari ke-${this.currentDay}`, {
-      fontSize: getResponsiveFont(width, 24),
-      color: '#ffffff',
-      fontStyle: 'bold',
-      align: 'right',
-    });
+    createFittedText(
+      this,
+      isMobile ? width * 0.5 : width * 0.82,
+      isMobile ? height * 0.19 : height * 0.05,
+      `Cyber Grooming\nHari ke-${this.currentDay}`,
+      {
+        fontSize: getResponsiveFont(width, 24),
+        color: '#ffffff',
+        fontStyle: 'bold',
+        align: isMobile ? 'center' : 'right',
+      },
+      { maxWidth: isMobile ? width * 0.62 : width * 0.28, maxHeight: 58, minFontSize: 13 },
+    );
   }
 
   createCharacter(width, height, device) {
@@ -105,36 +143,50 @@ export default class CyberGroomingScene extends Phaser.Scene {
     });
   }
 
-  createStoryPanel(width, height) {
-    this.add.rectangle(width * 0.6, height * 0.42, width * 0.58, height * 0.25, 0x102040, 0.88).setStrokeStyle(2, 0xffb74d);
-    this.add
-      .text(width * 0.6, height * 0.42, this.getStoryText(), {
-        fontSize: getResponsiveFont(width, 26),
+  createStoryPanel(width, height, device) {
+    const isMobile = device === 'mobile';
+    const panelX = isMobile ? width * 0.5 : width * 0.6;
+    const panelY = isMobile ? height * 0.38 : height * 0.42;
+    const panelWidth = isMobile ? width * 0.86 : width * 0.58;
+    const panelHeight = isMobile ? height * 0.22 : height * 0.25;
+
+    createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { strokeColor: 0xffb74d });
+    createFittedText(
+      this,
+      panelX,
+      panelY,
+      this.getStoryText(),
+      {
+        fontSize: getResponsiveFont(width, 26, { min: 16 }),
         color: '#ffffff',
         align: 'center',
-        wordWrap: { width: width * 0.48 },
-      })
-      .setOrigin(0.5);
+        lineSpacing: isMobile ? 5 : 8,
+      },
+      {
+        maxWidth: panelWidth * 0.84,
+        maxHeight: panelHeight * 0.72,
+        minFontSize: isMobile ? 12 : 15,
+      },
+    );
   }
 
-  createChoicePanel(width, height) {
-    this.getChoices().forEach((choice, index) => {
-      const y = height * (0.7 + index * 0.09);
-      const btn = this.add.rectangle(width * 0.6, y, width * 0.45, 55, 0x102040, 0.88).setStrokeStyle(2, 0xffb74d).setInteractive();
-      this.add
-        .text(width * 0.6, y, choice.text, {
-          fontSize: getResponsiveFont(width, 22),
-          color: '#ffffff',
-          align: 'center',
-          wordWrap: { width: width * 0.4 },
-        })
-        .setOrigin(0.5);
+  createChoicePanel(width, height, device) {
+    const isMobile = device === 'mobile';
+    const buttonX = isMobile ? width * 0.5 : width * 0.6;
+    const buttonWidth = isMobile ? width * 0.84 : width * 0.45;
+    const buttonHeight = isMobile ? 50 : 55;
+    const startY = isMobile ? height * 0.67 : height * 0.7;
+    const gap = isMobile ? 0.095 : 0.09;
 
-      btn.on('pointerover', () => btn.setFillStyle(0x3f2b18));
-      btn.on('pointerout', () => btn.setFillStyle(0x102040));
-      btn.on('pointerdown', () => {
+    this.getChoices().forEach((choice, index) => {
+      const y = startY + height * gap * index;
+      createNeonButton(this, buttonX, y, buttonWidth, buttonHeight, choice.text, () => {
         getAudioManager(this.game).playSFX('sfx-choice');
         this.handleChoice(choice);
+      }, {
+        fontSize: getResponsiveFontSize(width, 22, { min: 13 }),
+        strokeColor: 0xffb74d,
+        hoverFillColor: 0x3f2b18,
       });
     });
   }
@@ -201,29 +253,79 @@ export default class CyberGroomingScene extends Phaser.Scene {
   handleChoice(choice) {
     this.mentalShield = Phaser.Math.Clamp(this.mentalShield + choice.shield, 0, 100);
     this.mentalState = Phaser.Math.Clamp(this.mentalState + choice.anxiety, 0, 100);
-    this.playerChoices.push(choice.text);
+    if (this.currentDay < 7) {
+      this.playerChoices.push(choice.text);
+    }
 
     if (this.currentDay < 7) {
       this.currentDay++;
-      SaveManager.saveGame(this.slot || 3, {
+      SaveManager.saveGame(this.slot, {
         currentChapter: 3,
         currentDay: this.currentDay,
         mentalShield: this.mentalShield,
         mentalState: this.mentalState,
         playerChoices: this.playerChoices,
         storyMode: this.storyMode,
+        flowResults: this.flowResults,
       });
       this.scene.restart(this.getSceneState());
       return;
     }
 
-    this.scene.start('OutcomeResultScene', {
-      ending: this.mentalShield >= this.mentalState ? 'Good' : 'Bad',
+    this.completeStory();
+  }
+
+  completeStory() {
+    const result = this.buildStoryResult();
+
+    if (this.storyMode === 'linear') {
+      const storyResults = { ...this.flowResults, cybergrooming: result };
+      const combined = this.buildCombinedReflection(storyResults);
+      SaveManager.deleteSave(this.slot);
+      this.scene.start('ReflectionScene', combined);
+      return;
+    }
+
+    SaveManager.deleteSave(this.slot);
+    this.scene.start('ReflectionScene', {
+      storyMode: 'single',
       chapter: 3,
-      choices: this.playerChoices,
-      mentalShield: this.mentalShield,
-      anxiety: 100 - this.mentalState,
+      reflectionId: getReflectionId({ chapter: 3 }),
+      choices: result.choices,
+      mentalShield: result.mentalShield,
+      anxiety: result.anxiety,
+      storyResults: { cybergrooming: result },
     });
+  }
+
+  buildStoryResult() {
+    return {
+      chapter: 3,
+      key: 'cybergrooming',
+      title: 'Cyber Grooming',
+      choices: [...this.playerChoices],
+      mentalShield: Phaser.Math.Clamp(this.mentalShield, 0, 100),
+      mentalState: Phaser.Math.Clamp(this.mentalState, 0, 100),
+      anxiety: Phaser.Math.Clamp(100 - this.mentalState, 0, 100),
+    };
+  }
+
+  buildCombinedReflection(storyResults) {
+    const results = Object.values(storyResults);
+    const divisor = Math.max(results.length, 1);
+    const choices = results.flatMap((result) => result.choices);
+    const mentalShield = Math.round(results.reduce((total, result) => total + result.mentalShield, 0) / divisor);
+    const anxiety = Math.round(results.reduce((total, result) => total + result.anxiety, 0) / divisor);
+
+    return {
+      storyMode: 'linear',
+      chapter: 'linear',
+      reflectionId: getReflectionId({ storyMode: 'linear' }),
+      choices,
+      mentalShield,
+      anxiety,
+      storyResults,
+    };
   }
 
   getSceneState() {
@@ -234,6 +336,7 @@ export default class CyberGroomingScene extends Phaser.Scene {
       playerChoices: this.playerChoices,
       slot: this.slot,
       storyMode: this.storyMode,
+      flowResults: this.flowResults,
     };
   }
 }

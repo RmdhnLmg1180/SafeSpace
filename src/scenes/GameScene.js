@@ -1,7 +1,17 @@
 import Phaser from 'phaser';
-import { SaveManager } from '../utils/SaveManager';
+import { SaveManager, getReflectionId } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
-import { createResponsiveBackground, getResponsiveFont, getDeviceType, scaleCharacterByScreenHeight, getChapterBackgroundKey } from '../utils/UIHelpers';
+import {
+  createFittedText,
+  createGlassPanel,
+  createNeonButton,
+  createResponsiveBackground,
+  getDeviceType,
+  getResponsiveFont,
+  getResponsiveFontSize,
+  scaleCharacterByScreenHeight,
+  getChapterBackgroundKey,
+} from '../utils/UIHelpers';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -17,8 +27,9 @@ export default class GameScene extends Phaser.Scene {
     this.mentalState = data.mentalState || 80;
     this.mentalShield = data.mentalShield || 40;
     this.playerChoices = data.playerChoices || [];
-    this.slot = data.slot;
     this.storyMode = data.storyMode || 'single';
+    this.slot = data.slot || (this.storyMode === 'linear' ? 'linear' : 1);
+    this.flowResults = data.flowResults || {};
   }
 
   preload() {
@@ -64,13 +75,25 @@ export default class GameScene extends Phaser.Scene {
     const panelHeight = isMobile ? 108 : 118;
     const panelX = isMobile ? width * 0.5 : width * 0.2;
 
-    this.add.rectangle(panelX, height * 0.095, panelWidth, panelHeight, 0x0e1f3d, 0.52).setStrokeStyle(2, 0x66d9ff, 0.8);
-
-    this.add.text(panelX - panelWidth * 0.42, height * 0.05, 'STATUS MENTAL', {
-      fontSize: getResponsiveFont(width, 20),
-      color: '#e7f8ff',
-      fontStyle: 'bold',
+    createGlassPanel(this, panelX, height * 0.095, panelWidth, panelHeight, {
+      fillColor: 0x0e1f3d,
+      fillAlpha: 0.52,
+      strokeColor: 0x66d9ff,
+      highlightAlpha: 0.025,
     });
+
+    createFittedText(
+      this,
+      panelX - panelWidth * 0.42,
+      height * 0.05,
+      'STATUS MENTAL',
+      {
+        fontSize: getResponsiveFont(width, 20),
+        color: '#e7f8ff',
+        fontStyle: 'bold',
+      },
+      { origin: [0, 0.5], maxWidth: panelWidth * 0.82, maxHeight: 28, minFontSize: 11 },
+    );
 
     const barWidth = panelWidth * 0.86;
     const barHeight = isMobile ? 20 : 24;
@@ -90,16 +113,31 @@ export default class GameScene extends Phaser.Scene {
       ease: 'Sine.easeOut',
     });
 
-    this.add.text(panelX - panelWidth * 0.42, height * 0.12, `Netral | Anxiety ${100 - safeMental} | Shield ${this.mentalShield}%`, {
-      fontSize: getResponsiveFont(width, 18),
-      color: '#ffffff',
-    });
+    createFittedText(
+      this,
+      panelX - panelWidth * 0.42,
+      height * 0.12,
+      `Netral | Anxiety ${100 - safeMental} | Shield ${this.mentalShield}%`,
+      {
+        fontSize: getResponsiveFont(width, 18),
+        color: '#ffffff',
+      },
+      { origin: [0, 0.5], maxWidth: panelWidth * 0.84, maxHeight: 28, minFontSize: 10 },
+    );
 
-    this.add.text(width * 0.88, height * 0.05, `Hari ke-${this.currentDay}`, {
-      fontSize: getResponsiveFont(width, 30),
-      color: '#ffffff',
-      fontStyle: 'bold',
-    });
+    createFittedText(
+      this,
+      isMobile ? width * 0.5 : width * 0.88,
+      isMobile ? height * 0.19 : height * 0.05,
+      `Hari ke-${this.currentDay}`,
+      {
+        fontSize: getResponsiveFont(width, 30),
+        color: '#ffffff',
+        fontStyle: 'bold',
+        align: 'center',
+      },
+      { maxWidth: isMobile ? width * 0.45 : width * 0.22, maxHeight: 42, minFontSize: 14 },
+    );
   }
 
   createCharacter(width, height, device) {
@@ -119,47 +157,52 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  createStoryPanel(width, height) {
-    this.add.rectangle(width * 0.6, height * 0.42, width * 0.58, height * 0.25, 0x102040, 0.88).setStrokeStyle(2, 0x4fc3f7);
+  createStoryPanel(width, height, device) {
+    const isMobile = device === 'mobile';
+    const panelX = isMobile ? width * 0.5 : width * 0.6;
+    const panelY = isMobile ? height * 0.38 : height * 0.42;
+    const panelWidth = isMobile ? width * 0.86 : width * 0.58;
+    const panelHeight = isMobile ? height * 0.22 : height * 0.25;
 
-    this.add
-      .text(width * 0.6, height * 0.42, this.getStoryText(), {
-        fontSize: getResponsiveFont(width, 26),
+    createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { strokeColor: 0x4fc3f7 });
+
+    createFittedText(
+      this,
+      panelX,
+      panelY,
+      this.getStoryText(),
+      {
+        fontSize: getResponsiveFont(width, 26, { min: 16 }),
         color: '#ffffff',
         align: 'center',
-        wordWrap: {
-          width: width * 0.48,
-        },
-      })
-      .setOrigin(0.5);
+        lineSpacing: isMobile ? 5 : 8,
+      },
+      {
+        maxWidth: panelWidth * 0.84,
+        maxHeight: panelHeight * 0.72,
+        minFontSize: isMobile ? 12 : 15,
+      },
+    );
   }
 
-  createChoicePanel(width, height) {
+  createChoicePanel(width, height, device) {
     const choices = this.getChoices();
+    const isMobile = device === 'mobile';
+    const buttonX = isMobile ? width * 0.5 : width * 0.6;
+    const buttonWidth = isMobile ? width * 0.84 : width * 0.45;
+    const buttonHeight = isMobile ? 50 : 55;
+    const startY = isMobile ? height * 0.67 : height * 0.7;
+    const gap = isMobile ? 0.095 : 0.09;
 
     choices.forEach((choice, index) => {
-      const y = height * (0.7 + index * 0.09);
+      const y = startY + height * gap * index;
 
-      const btn = this.add.rectangle(width * 0.6, y, width * 0.45, 55, 0x102040, 0.88).setStrokeStyle(2, 0x4fc3f7).setInteractive();
-
-      this.add
-        .text(width * 0.6, y, choice, {
-          fontSize: getResponsiveFont(width, 22),
-          color: '#ffffff',
-        })
-        .setOrigin(0.5);
-
-      btn.on('pointerover', () => {
-        btn.setFillStyle(0x16325f);
-      });
-
-      btn.on('pointerout', () => {
-        btn.setFillStyle(0x102040);
-      });
-
-      btn.on('pointerdown', () => {
+      createNeonButton(this, buttonX, y, buttonWidth, buttonHeight, choice, () => {
         getAudioManager(this.game).playSFX('sfx-choice');
         this.nextDay(index);
+      }, {
+        fontSize: getResponsiveFontSize(width, 22, { min: 13 }),
+        strokeColor: 0x4fc3f7,
       });
     });
   }
@@ -219,7 +262,9 @@ export default class GameScene extends Phaser.Scene {
 
   nextDay(choiceIndex = 0) {
     const selectedChoice = this.getChoices()[choiceIndex] || this.getChoices()[0];
-    this.playerChoices.push(selectedChoice);
+    if (this.currentDay < 7) {
+      this.playerChoices.push(selectedChoice);
+    }
 
     switch (this.currentDay) {
       case 1:
@@ -267,38 +312,19 @@ export default class GameScene extends Phaser.Scene {
         break;
 
       case 7:
-        SaveManager.saveGame(this.slot || 1, {
-          currentChapter: this.storyMode === 'linear' ? 2 : 1,
-          currentDay: this.storyMode === 'linear' ? 1 : 7,
-          mentalShield: this.storyMode === 'linear' ? 45 : this.mentalShield,
-          mentalState: this.storyMode === 'linear' ? 65 : this.mentalState,
-          playerChoices: [],
-          storyMode: this.storyMode,
-        });
-
-        if (this.storyMode === 'linear') {
-          this.scene.start('BodyShamingScene', { storyMode: 'linear' });
-          return;
-        }
-
-        this.scene.start('OutcomeResultScene', {
-          ending: this.mentalShield > this.mentalState ? 'Good' : 'Reflection',
-          chapter: 1,
-          choices: this.playerChoices,
-          mentalShield: this.mentalShield,
-          anxiety: 100 - this.mentalState,
-        });
+        this.completeStory();
         return;
     }
 
     this.currentDay++;
-    SaveManager.saveGame(this.slot || 1, {
+    SaveManager.saveGame(this.slot, {
       currentChapter: 1,
       currentDay: this.currentDay,
       mentalShield: this.mentalShield,
       mentalState: this.mentalState,
       playerChoices: this.playerChoices,
       storyMode: this.storyMode,
+      flowResults: this.flowResults,
     });
     this.scene.restart({
       currentDay: this.currentDay,
@@ -307,7 +333,50 @@ export default class GameScene extends Phaser.Scene {
       playerChoices: this.playerChoices,
       slot: this.slot,
       storyMode: this.storyMode,
+      flowResults: this.flowResults,
     });
+  }
+
+  completeStory() {
+    const result = this.buildStoryResult();
+
+    if (this.storyMode === 'linear') {
+      const flowResults = { ...this.flowResults, cyberbullying: result };
+      SaveManager.saveGame(this.slot, {
+        currentChapter: 2,
+        currentDay: 1,
+        mentalShield: 45,
+        mentalState: 65,
+        playerChoices: [],
+        storyMode: 'linear',
+        flowResults,
+      });
+      this.scene.start('BodyShamingScene', { storyMode: 'linear', slot: this.slot, flowResults });
+      return;
+    }
+
+    SaveManager.deleteSave(this.slot);
+    this.scene.start('ReflectionScene', {
+      storyMode: 'single',
+      chapter: 1,
+      reflectionId: getReflectionId({ chapter: 1 }),
+      choices: result.choices,
+      mentalShield: result.mentalShield,
+      anxiety: result.anxiety,
+      storyResults: { cyberbullying: result },
+    });
+  }
+
+  buildStoryResult() {
+    return {
+      chapter: 1,
+      key: 'cyberbullying',
+      title: 'Cyberbullying',
+      choices: [...this.playerChoices],
+      mentalShield: Phaser.Math.Clamp(this.mentalShield, 0, 100),
+      mentalState: Phaser.Math.Clamp(this.mentalState, 0, 100),
+      anxiety: Phaser.Math.Clamp(100 - this.mentalState, 0, 100),
+    };
   }
 
   getSceneState() {
@@ -318,6 +387,7 @@ export default class GameScene extends Phaser.Scene {
       playerChoices: this.playerChoices,
       slot: this.slot,
       storyMode: this.storyMode,
+      flowResults: this.flowResults,
     };
   }
 }

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../utils/SaveManager';
-import { createResponsiveBackground, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
+import { getAudioManager } from '../utils/AudioManager';
+import { createNeonButton, createResponsiveBackground, getResponsiveFontSize, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -50,12 +51,12 @@ export default class MenuScene extends Phaser.Scene {
     const hasSave = !!SaveManager.continueLastGame();
 
     // Buttons
-    this.createButton(width / 2, height * 0.56, width * 0.75, 60, 'GAME BARU', () => this.scene.start('ChapterSelectionScene'));
+    this.createButton(width / 2, height * 0.54, width * 0.75, 56, 'GAME BARU', () => this.scene.start('ChapterSelectionScene'));
     this.createButton(
       width / 2,
-      height * 0.66,
+      height * 0.635,
       width * 0.75,
-      60,
+      56,
       'MELANJUTKAN',
       hasSave
         ? () => {
@@ -71,9 +72,9 @@ export default class MenuScene extends Phaser.Scene {
         : null,
       !hasSave,
     );
-    this.createButton(width / 2, height * 0.76, width * 0.75, 60, 'LOAD GAME', hasSave ? () => this.scene.start('LoadGameScene') : null, !hasSave);
-    this.createButton(width / 2, height * 0.86, width * 0.75, 60, 'TUTORIAL', () => this.scene.start('TutorialScene'));
-    this.createButton(width / 2, height * 0.96, width * 0.75, 60, 'TENTANG KITA', () => this.scene.start('AboutScene'));
+    this.createButton(width / 2, height * 0.73, width * 0.75, 56, 'LOAD GAME', hasSave ? () => this.scene.start('LoadGameScene') : null, !hasSave);
+    this.createButton(width / 2, height * 0.825, width * 0.75, 56, 'TUTORIAL', () => this.scene.start('TutorialScene'));
+    this.createButton(width / 2, height * 0.92, width * 0.75, 56, 'TENTANG KITA', () => this.scene.start('AboutScene'));
   }
 
   createDesktopMenu(width, height) {
@@ -133,40 +134,22 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   createButton(x, y, w, h, label, callback = null, disabled = false) {
-    const glow = this.add.rectangle(x, y, w + 14, h + 14, 0x4fc3f7, 0.08);
-    const btn = this.add
-      .rectangle(x, y, w, h, disabled ? 0x444444 : 0x102040, disabled ? 0.5 : 0.82)
-      .setStrokeStyle(2, 0x4fc3f7)
-      .setInteractive({ useHandCursor: !disabled });
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-    const text = this.add
-      .text(x, y, label, {
-        fontSize: '22px',
-        color: disabled ? '#888888' : '#ffffff',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    if (!disabled) {
-      btn.on('pointerover', () => {
-        btn.setFillStyle(0x16325f);
-        glow.setAlpha(0.22);
-        btn.setScale(1.04);
-        text.setScale(1.03);
-      });
-      btn.on('pointerout', () => {
-        btn.setFillStyle(0x102040);
-        glow.setAlpha(0.08);
-        btn.setScale(1);
-        text.setScale(1);
-      });
-      if (callback) {
-        btn.on('pointerdown', callback);
-      }
-    } else {
-      btn.setAlpha(0.5);
-      text.setAlpha(0.5);
-    }
+    return createNeonButton(
+      this,
+      x,
+      y,
+      w,
+      h,
+      label,
+      () => {
+        getAudioManager(this.game).playSFX('sfx-click');
+        if (callback) callback();
+      },
+      {
+        disabled,
+        fontSize: getResponsiveFontSize(this.scale.width, 22, { min: 13 }),
+      },
+    );
   }
 
   createGearButton(x, y) {
@@ -196,6 +179,9 @@ export default class MenuScene extends Phaser.Scene {
         duration: 250,
       });
     });
-    btn.on('pointerdown', () => this.scene.start('SettingsScene'));
+    btn.on('pointerdown', () => {
+      getAudioManager(this.game).playSFX('sfx-click');
+      this.scene.start('SettingsScene');
+    });
   }
 }

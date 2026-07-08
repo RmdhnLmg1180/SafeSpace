@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createResponsiveBackground, setResponsiveLogoDisplaySize, getResponsiveFont } from '../utils/UIHelpers';
+import { createFittedText, createNeonButton, createResponsiveBackground, setResponsiveLogoDisplaySize, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
 
 export default class LandingScene extends Phaser.Scene {
   constructor() {
@@ -48,11 +48,24 @@ export default class LandingScene extends Phaser.Scene {
     });
 
     // Subtitle
-    this.add.text(isMobile ? width * 0.15 : width * 0.1, isMobile ? height * 0.28 : height * 0.34, 'Ruang Aman Digital\nuntuk Bertahan dari\nTekanan Dunia Online', {
-      fontSize: getResponsiveFont(width, 28),
-      color: '#ffffff',
-      lineSpacing: 10,
-    });
+    createFittedText(
+      this,
+      isMobile ? width * 0.5 : width * 0.1,
+      isMobile ? height * 0.29 : height * 0.34,
+      'Ruang Aman Digital\nuntuk Bertahan dari\nTekanan Dunia Online',
+      {
+        fontSize: getResponsiveFont(width, 28),
+        color: '#ffffff',
+        lineSpacing: isMobile ? 6 : 10,
+        align: isMobile ? 'center' : 'left',
+      },
+      {
+        origin: isMobile ? 0.5 : [0, 0],
+        maxWidth: isMobile ? width * 0.82 : width * 0.42,
+        maxHeight: isMobile ? height * 0.2 : height * 0.26,
+        minFontSize: 14,
+      },
+    );
 
     // Ray
     const ray = this.add.image(isMobile ? width * 0.5 : width * 0.75, isMobile ? height * 0.62 : height * 0.58, 'ray');
@@ -76,37 +89,9 @@ export default class LandingScene extends Phaser.Scene {
   }
 
   createStartButton(x, y, w, h) {
-    const glow = this.add.rectangle(x, y, w + 14, h + 14, 0x4fc3f7, 0.08);
-
-    const btn = this.add.rectangle(x, y, w, h, 0x102040, 0.82).setStrokeStyle(2, 0x4fc3f7).setInteractive();
-
-    this.add.rectangle(x, y - h * 0.22, w * 0.88, h * 0.22, 0xffffff, 0.05);
-
-    const text = this.add
-      .text(x, y, 'BEGIN JOURNEY', {
-        fontSize: '22px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    btn.on('pointerover', () => {
-      btn.setFillStyle(0x16325f);
-      glow.setAlpha(0.22);
-      btn.setScale(1.04);
-      text.setScale(1.03);
-    });
-
-    btn.on('pointerout', () => {
-      btn.setFillStyle(0x102040);
-      glow.setAlpha(0.08);
-      btn.setScale(1);
-      text.setScale(1);
-    });
-
-    btn.on('pointerdown', () => {
+    createNeonButton(this, x, y, w, h, 'BEGIN JOURNEY', () => {
       getAudioManager(this.game).playSFX('sfx-click');
       this.scene.start('IntroScene');
-    });
+    }, { fontSize: getResponsiveFontSize(this.scale.width, 22, { min: 14 }) });
   }
 }
