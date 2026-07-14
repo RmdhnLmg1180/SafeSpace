@@ -1,4 +1,6 @@
 // src/utils/ReflectionAI.js
+import { sanitizePlainText } from './UIHelpers';
+
 export async function getCounselorReflection(data = {}) {
   const { chapter, choices, mentalShield, anxiety, storyMode, storyResults } = data;
   const payload = { chapter, choices, mentalShield, anxiety, storyMode, storyResults };
@@ -24,7 +26,8 @@ export async function getCounselorReflection(data = {}) {
     if (!res.ok) throw new Error(`Reflection endpoint failed: ${res.status}`);
 
     const data = await res.json();
-    return data.reflection || data.text || data.choices?.[0]?.message?.content || localReflection(payload);
+    const rawReflection = data.reflection || data.text || data.choices?.[0]?.message?.content;
+    return sanitizePlainText(rawReflection) || localReflection(payload);
   } catch {
     return localReflection(payload);
   } finally {

@@ -58,6 +58,35 @@ export function cleanDisplayText(value = '') {
     .trim();
 }
 
+export function sanitizePlainText(value = '') {
+  let text = String(value ?? '');
+
+  if (typeof document !== 'undefined') {
+    // Decode escaped markup once, then let the browser safely extract text only.
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = text;
+    text = decoder.value;
+
+    const parsed = new DOMParser().parseFromString(text, 'text/html');
+    parsed.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach((node) => node.remove());
+    parsed.querySelectorAll('br').forEach((node) => node.replaceWith('\n'));
+    parsed.querySelectorAll('p, div, section, article, h1, h2, h3, h4, li').forEach((node) => node.append('\n'));
+    text = parsed.body.textContent || '';
+  } else {
+    text = text.replace(/<[^>]*>/g, ' ');
+  }
+
+  return text
+    .replace(/```(?:html|css)?/gi, '')
+    .replace(/\b(?:div|span|p|section|article)\s+style\s*=\s*(?:"[^"]*"|'[^']*')\s*>?/gi, '')
+    .replace(/<\/?[a-z][^>]*>/gi, '')
+    .replace(/\s*\(\s*game\s*over\s*\)\s*/gi, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 export function cleanChoiceLabel(choice) {
   return cleanDisplayText(choice);
 }
@@ -327,6 +356,113 @@ export function createScrollableTextBox(scene, x, y, w, h, content, style = {}, 
     thumb,
     scrollBy,
     maxScroll,
+  };
+}
+
+export function createDomScrollPanel(scene, x, y, w, h, content, options = {}) {
+  const outer = document.createElement('div');
+  const inner = document.createElement('div');
+
+  outer.className = options.className || 'safe-space-scroll-panel';
+  Object.assign(outer.style, {
+    width: `${Math.round(w)}px`,
+    height: `${Math.round(h)}px`,
+    overflow: 'hidden',
+    boxSizing: 'border-box',
+    borderRadius: `${options.radius ?? 12}px`,
+    background: options.background || 'rgba(4, 13, 29, 0.52)',
+    border: options.border || '1px solid rgba(139, 233, 255, 0.24)',
+    pointerEvents: 'auto',
+  });
+
+  Object.assign(inner.style, {
+    width: '100%',
+    height: '100%',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    overscrollBehavior: 'contain',
+    touchAction: 'pan-y',
+    boxSizing: 'border-box',
+    padding: `${options.paddingY ?? 14}px ${options.paddingX ?? 16}px`,
+    fontFamily: CRISP_FONT,
+    fontSize: `${options.fontSize ?? 16}px`,
+    fontWeight: `${options.fontWeight ?? 600}`,
+    lineHeight: `${options.lineHeight ?? 1.55}`,
+    color: options.color || '#ffffff',
+    textAlign: options.align || 'left',
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    wordBreak: 'normal',
+    WebkitFontSmoothing: 'antialiased',
+    textRendering: 'geometricPrecision',
+  });
+
+  inner.textContent = sanitizePlainText(content);
+  outer.append(inner);
+
+  return scene.add.dom(Math.round(x), Math.round(y), outer).setOrigin(0.5).setDepth(options.depth ?? 30);
+}
+
+export function bindResponsiveScene(scene, getState = () => ({}), delay = 140) {
+  let resizeTimer;
+  const onResize = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (scene.scene.isActive()) scene.scene.restart(getState() || {});
+    }, delay);
+  };
+
+  scene.scale.on('resize', onResize);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    clearTimeout(resizeTimer);
+    scene.scale.off('resize', onResize);
+  });
+}
+
+export function getGameplayLayout(width, height, choiceCount = 2) {
+  const isMobile = getDeviceType(width) === 'mobile';
+
+  if (!isMobile) {
+    return {
+      isMobile: false,
+      status: { x: width * 0.2, y: Math.max(66, height * 0.11), w: Math.min(width * 0.34, 410), h: 118 },
+      title: { x: width * 0.82, y: Math.max(48, height * 0.075), w: width * 0.28, h: 64 },
+      story: { x: width * 0.62, y: height * 0.42, w: Math.min(width * 0.6, 820), h: Phaser.Math.Clamp(height * 0.28, 170, 270) },
+      character: { x: width * 0.13, y: height * 0.65, targetHeight: Phaser.Math.Clamp(height * 0.48, 230, 430) },
+      choices: {
+        x: width * 0.62,
+        w: Math.min(width * 0.5, 660),
+        h: Phaser.Math.Clamp(height * 0.075, 50, 62),
+        gap: Phaser.Math.Clamp(height * 0.022, 12, 20),
+        bottom: height - Math.max(22, height * 0.035),
+      },
+    };
+  }
+
+  const margin = Phaser.Math.Clamp(width * 0.045, 12, 20);
+  const statusH = Phaser.Math.Clamp(height * 0.145, 86, 108);
+  const statusTop = margin;
+  const titleH = Phaser.Math.Clamp(height * 0.07, 40, 54);
+  const titleTop = statusTop + statusH + 8;
+  const buttonH = Phaser.Math.Clamp(height * 0.073, 44, 54);
+  const gap = Phaser.Math.Clamp(height * 0.014, 8, 12);
+  const choicesTotal = choiceCount * buttonH + Math.max(0, choiceCount - 1) * gap;
+  const choiceBottom = height - margin;
+  const choiceTop = choiceBottom - choicesTotal;
+  const storyTop = titleTop + titleH + 8;
+  const storyH = Phaser.Math.Clamp(choiceTop - storyTop - 12, 96, Math.min(190, height * 0.25));
+
+  return {
+    isMobile: true,
+    status: { x: width / 2, y: statusTop + statusH / 2, w: width - margin * 2, h: statusH },
+    title: { x: width / 2, y: titleTop + titleH / 2, w: width * 0.88, h: titleH },
+    story: { x: width / 2, y: storyTop + storyH / 2, w: width - margin * 2, h: storyH },
+    character: {
+      x: width * 0.18,
+      y: storyTop + storyH + (choiceTop - storyTop - storyH) / 2,
+      targetHeight: Phaser.Math.Clamp((choiceTop - storyTop - storyH) * 0.72, 64, Math.min(160, height * 0.2)),
+    },
+    choices: { x: width / 2, w: width - margin * 2, h: buttonH, gap, bottom: choiceBottom },
   };
 }
 

@@ -1,7 +1,7 @@
 // src/scenes/TutorialScene.js
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { bindResponsiveScene, createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class TutorialScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +16,7 @@ export default class TutorialScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const isMobile = width < 768;
+    bindResponsiveScene(this);
 
     this.createBackground(width, height, isMobile);
 

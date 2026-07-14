@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager } from '../utils/SaveManager';
-import { createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { bindResponsiveScene, createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class SettingsScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +17,7 @@ export default class SettingsScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const isMobile = width < 768;
     const audio = getAudioManager(this.game);
+    bindResponsiveScene(this);
 
     this.createBackground(width, height, isMobile);
 

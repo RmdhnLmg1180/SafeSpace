@@ -6,11 +6,12 @@ import {
   createGlassPanel,
   createNeonButton,
   createResponsiveBackground,
+  bindResponsiveScene,
   getDeviceType,
+  getGameplayLayout,
   getResponsiveFont,
   getResponsiveFontSize,
   safeLoadImage,
-  scaleCharacterByScreenHeight,
   getChapterBackgroundKey,
 } from '../utils/UIHelpers';
 
@@ -24,10 +25,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   init(data = {}) {
-    this.currentDay = data.currentDay || 1;
-    this.mentalState = data.mentalState || 80;
-    this.mentalShield = data.mentalShield || 40;
-    this.playerChoices = data.playerChoices || [];
+    this.currentDay = data.currentDay ?? 1;
+    this.mentalState = data.mentalState ?? 80;
+    this.mentalShield = data.mentalShield ?? 40;
+    this.playerChoices = [...(data.playerChoices || [])];
     this.storyMode = data.storyMode || 'single';
     this.slot = data.slot || (this.storyMode === 'linear' ? 'linear' : 1);
     this.flowResults = data.flowResults || {};
@@ -47,21 +48,13 @@ export default class GameScene extends Phaser.Scene {
   create() {
     getAudioManager(this.game).playMusic('music-story-theme');
     this.renderScene();
-
-    let resizeTimer;
-
-    this.scale.on('resize', () => {
-      clearTimeout(resizeTimer);
-
-      resizeTimer = setTimeout(() => {
-        this.scene.restart(this.getSceneState());
-      }, 100);
-    });
+    bindResponsiveScene(this, () => this.getSceneState());
   }
 
   renderScene() {
     const { width, height } = this.scale;
     const device = getDeviceType(width);
+    this.layout = getGameplayLayout(width, height, this.getChoices().length);
 
     createResponsiveBackground(this, getChapterBackgroundKey('cyber', this.currentDay), { mobileFocalX: 0.62 });
     this.createTopPanel(width, height, device);
@@ -72,11 +65,10 @@ export default class GameScene extends Phaser.Scene {
 
   createTopPanel(width, height, device) {
     const isMobile = device === 'mobile';
-    const panelWidth = isMobile ? width * 0.84 : width * 0.32;
-    const panelHeight = isMobile ? 108 : 118;
-    const panelX = isMobile ? width * 0.5 : width * 0.2;
+    const { status, title } = this.layout;
+    const { x: panelX, y: panelY, w: panelWidth, h: panelHeight } = status;
 
-    createGlassPanel(this, panelX, height * 0.095, panelWidth, panelHeight, {
+    createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, {
       fillColor: 0x0e1f3d,
       fillAlpha: 0.52,
       strokeColor: 0x66d9ff,
@@ -86,7 +78,7 @@ export default class GameScene extends Phaser.Scene {
     createFittedText(
       this,
       panelX - panelWidth * 0.42,
-      height * 0.05,
+      panelY - panelHeight * 0.3,
       'STATUS MENTAL',
       {
         fontSize: getResponsiveFont(width, 20),
@@ -99,7 +91,7 @@ export default class GameScene extends Phaser.Scene {
     const barWidth = panelWidth * 0.86;
     const barHeight = isMobile ? 20 : 24;
     const barX = panelX;
-    const barY = height * 0.09;
+    const barY = panelY;
 
     this.add.rectangle(barX, barY, barWidth, barHeight, 0x0a172d, 0.9).setStrokeStyle(1, 0x8be9ff, 0.5);
 
@@ -117,7 +109,7 @@ export default class GameScene extends Phaser.Scene {
     createFittedText(
       this,
       panelX - panelWidth * 0.42,
-      height * 0.12,
+      panelY + panelHeight * 0.3,
       `Netral | Anxiety ${100 - safeMental} | Shield ${this.mentalShield}%`,
       {
         fontSize: getResponsiveFont(width, 18),
@@ -128,25 +120,24 @@ export default class GameScene extends Phaser.Scene {
 
     createFittedText(
       this,
-      isMobile ? width * 0.5 : width * 0.88,
-      isMobile ? height * 0.19 : height * 0.05,
-      `Hari ke-${this.currentDay}`,
+      title.x,
+      title.y,
+      `Cyberbullying  •  Hari ke-${this.currentDay}`,
       {
         fontSize: getResponsiveFont(width, 30),
         color: '#ffffff',
         fontStyle: 'bold',
         align: 'center',
       },
-      { maxWidth: isMobile ? width * 0.45 : width * 0.22, maxHeight: 42, minFontSize: 14 },
+      { maxWidth: title.w, maxHeight: title.h, minFontSize: 13 },
     );
   }
 
   createCharacter(width, height, device) {
-    const isMobile = device === 'mobile';
     const expression = this.getCharacterExpression();
-    const ray = this.add.image(isMobile ? width * 0.22 : width * 0.1, isMobile ? height * 0.62 : height * 0.63, expression);
-
-    scaleCharacterByScreenHeight(this, ray, { desktopPercent: 0.5, tabletPercent: 0.38, mobilePercent: 0.25 });
+    const { character } = this.layout;
+    const ray = this.add.image(character.x, character.y, expression).setDepth(8);
+    ray.setScale(character.targetHeight / ray.height);
 
     this.tweens.add({
       targets: ray,
@@ -160,10 +151,7 @@ export default class GameScene extends Phaser.Scene {
 
   createStoryPanel(width, height, device) {
     const isMobile = device === 'mobile';
-    const panelX = isMobile ? width * 0.5 : width * 0.6;
-    const panelY = isMobile ? height * 0.38 : height * 0.42;
-    const panelWidth = isMobile ? width * 0.86 : width * 0.58;
-    const panelHeight = isMobile ? height * 0.28 : height * 0.25;
+    const { x: panelX, y: panelY, w: panelWidth, h: panelHeight } = this.layout.story;
 
     createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { strokeColor: 0x4fc3f7 });
 
@@ -188,21 +176,17 @@ export default class GameScene extends Phaser.Scene {
 
   createChoicePanel(width, height, device) {
     const choices = this.getChoices();
-    const isMobile = device === 'mobile';
-    const buttonX = isMobile ? width * 0.5 : width * 0.6;
-    const buttonWidth = isMobile ? width * 0.84 : width * 0.45;
-    const buttonHeight = isMobile ? 50 : 55;
-    const startY = isMobile ? height * 0.67 : height * 0.7;
-    const gap = isMobile ? 0.095 : 0.09;
+    const { x: buttonX, w: buttonWidth, h: buttonHeight, gap, bottom } = this.layout.choices;
+    const startY = bottom - (choices.length * buttonHeight + (choices.length - 1) * gap) + buttonHeight / 2;
 
     choices.forEach((choice, index) => {
-      const y = startY + height * gap * index;
+      const y = startY + (buttonHeight + gap) * index;
 
       createNeonButton(this, buttonX, y, buttonWidth, buttonHeight, choice, () => {
         getAudioManager(this.game).playSFX('sfx-choice');
         this.nextDay(index);
       }, {
-        fontSize: getResponsiveFontSize(width, 18, { min: 10 }),
+        fontSize: getResponsiveFontSize(width, 20, { min: 13, mobileScale: 0.7 }),
         strokeColor: 0x4fc3f7,
       });
     });

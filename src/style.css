@@ -23,6 +23,17 @@ canvas {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.safe-space-scroll-panel {
+  isolation: isolate;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.safe-space-scroll-panel > div {
+  scrollbar-gutter: stable;
+}
+
 #app ::-webkit-scrollbar {
   width: 7px;
 }

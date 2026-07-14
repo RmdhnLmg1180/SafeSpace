@@ -7,11 +7,12 @@ import {
   createGlassPanel,
   createNeonButton,
   createResponsiveBackground,
+  bindResponsiveScene,
   getDeviceType,
+  getGameplayLayout,
   getResponsiveFont,
   getResponsiveFontSize,
   safeLoadImage,
-  scaleCharacterByScreenHeight,
   getChapterBackgroundAsset,
   getChapterBackgroundKey,
 } from '../utils/UIHelpers';
@@ -22,10 +23,10 @@ export default class BodyShamingScene extends Phaser.Scene {
   }
 
   init(data = {}) {
-    this.currentDay = data.currentDay || 1;
-    this.mentalShield = data.mentalShield || 45;
-    this.mentalState = data.mentalState || 65;
-    this.playerChoices = data.playerChoices || [];
+    this.currentDay = data.currentDay ?? 1;
+    this.mentalShield = data.mentalShield ?? 45;
+    this.mentalState = data.mentalState ?? 65;
+    this.playerChoices = [...(data.playerChoices || [])];
     this.storyMode = data.storyMode || 'single';
     this.slot = data.slot || (this.storyMode === 'linear' ? 'linear' : 2);
     this.flowResults = data.flowResults || {};
@@ -47,17 +48,13 @@ export default class BodyShamingScene extends Phaser.Scene {
   create() {
     getAudioManager(this.game).playMusic('music-story-theme');
     this.renderScene();
-
-    let resizeTimer;
-    this.scale.on('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => this.scene.restart(this.getSceneState()), 100);
-    });
+    bindResponsiveScene(this, () => this.getSceneState());
   }
 
   renderScene() {
     const { width, height } = this.scale;
     const device = getDeviceType(width);
+    this.layout = getGameplayLayout(width, height, this.getChoices().length);
 
     createResponsiveBackground(this, getChapterBackgroundKey('body', this.currentDay), { mobileFocalX: 0.62 });
 
@@ -69,11 +66,10 @@ export default class BodyShamingScene extends Phaser.Scene {
 
   createTopPanel(width, height, device) {
     const isMobile = device === 'mobile';
-    const panelWidth = isMobile ? width * 0.84 : width * 0.32;
-    const panelHeight = isMobile ? 108 : 118;
-    const panelX = isMobile ? width * 0.5 : width * 0.2;
+    const { status, title } = this.layout;
+    const { x: panelX, y: panelY, w: panelWidth, h: panelHeight } = status;
 
-    createGlassPanel(this, panelX, height * 0.095, panelWidth, panelHeight, {
+    createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, {
       fillColor: 0x102040,
       fillAlpha: 0.52,
       strokeColor: 0x81c784,
@@ -82,7 +78,7 @@ export default class BodyShamingScene extends Phaser.Scene {
     createFittedText(
       this,
       panelX - panelWidth * 0.42,
-      height * 0.05,
+      panelY - panelHeight * 0.3,
       'STATUS MENTAL',
       {
         fontSize: getResponsiveFont(width, 20),
@@ -96,16 +92,16 @@ export default class BodyShamingScene extends Phaser.Scene {
     const barHeight = isMobile ? 20 : 24;
     const safeMental = Phaser.Math.Clamp(this.mentalState, 0, 100);
 
-    this.add.rectangle(panelX, height * 0.09, barWidth, barHeight, 0x1a2838, 0.9).setStrokeStyle(1, 0xb8e6bd, 0.5);
+    this.add.rectangle(panelX, panelY, barWidth, barHeight, 0x1a2838, 0.9).setStrokeStyle(1, 0xb8e6bd, 0.5);
 
     const fillWidth = (safeMental / 100) * barWidth;
-    const fillBar = this.add.rectangle(panelX - barWidth / 2 + fillWidth / 2, height * 0.09, fillWidth, barHeight, this.getMentalColor());
+    const fillBar = this.add.rectangle(panelX - barWidth / 2 + fillWidth / 2, panelY, fillWidth, barHeight, this.getMentalColor());
     this.tweens.add({ targets: fillBar, width: fillWidth, duration: 450, ease: 'Sine.easeOut' });
 
     createFittedText(
       this,
       panelX - panelWidth * 0.42,
-      height * 0.12,
+      panelY + panelHeight * 0.3,
       `Netral | Anxiety ${100 - safeMental} | Shield ${this.mentalShield}%`,
       {
         fontSize: getResponsiveFont(width, 18),
@@ -116,23 +112,23 @@ export default class BodyShamingScene extends Phaser.Scene {
 
     createFittedText(
       this,
-      isMobile ? width * 0.5 : width * 0.82,
-      isMobile ? height * 0.19 : height * 0.05,
-      `Body Shaming\nHari ke-${this.currentDay}`,
+      title.x,
+      title.y,
+      `Body Shaming  •  Hari ke-${this.currentDay}`,
       {
         fontSize: getResponsiveFont(width, 24),
         color: '#ffffff',
         fontStyle: 'bold',
         align: isMobile ? 'center' : 'right',
       },
-      { maxWidth: isMobile ? width * 0.62 : width * 0.28, maxHeight: 58, minFontSize: 13 },
+      { maxWidth: title.w, maxHeight: title.h, minFontSize: 13 },
     );
   }
 
   createCharacter(width, height, device) {
-    const isMobile = device === 'mobile';
-    const ray = this.add.image(isMobile ? width * 0.22 : width * 0.1, isMobile ? height * 0.62 : height * 0.63, this.getCharacterExpression());
-    scaleCharacterByScreenHeight(this, ray, { desktopPercent: 0.5, tabletPercent: 0.38, mobilePercent: 0.25 });
+    const { character } = this.layout;
+    const ray = this.add.image(character.x, character.y, this.getCharacterExpression()).setDepth(8);
+    ray.setScale(character.targetHeight / ray.height);
 
     this.tweens.add({
       targets: ray,
@@ -146,10 +142,7 @@ export default class BodyShamingScene extends Phaser.Scene {
 
   createStoryPanel(width, height, device) {
     const isMobile = device === 'mobile';
-    const panelX = isMobile ? width * 0.5 : width * 0.6;
-    const panelY = isMobile ? height * 0.38 : height * 0.42;
-    const panelWidth = isMobile ? width * 0.86 : width * 0.58;
-    const panelHeight = isMobile ? height * 0.28 : height * 0.25;
+    const { x: panelX, y: panelY, w: panelWidth, h: panelHeight } = this.layout.story;
 
     createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { strokeColor: 0x81c784 });
     createFittedText(
@@ -172,20 +165,17 @@ export default class BodyShamingScene extends Phaser.Scene {
   }
 
   createChoicePanel(width, height, device) {
-    const isMobile = device === 'mobile';
-    const buttonX = isMobile ? width * 0.5 : width * 0.6;
-    const buttonWidth = isMobile ? width * 0.84 : width * 0.45;
-    const buttonHeight = isMobile ? 50 : 55;
-    const startY = isMobile ? height * 0.67 : height * 0.7;
-    const gap = isMobile ? 0.095 : 0.09;
+    const choices = this.getChoices();
+    const { x: buttonX, w: buttonWidth, h: buttonHeight, gap, bottom } = this.layout.choices;
+    const startY = bottom - (choices.length * buttonHeight + (choices.length - 1) * gap) + buttonHeight / 2;
 
-    this.getChoices().forEach((choice, index) => {
-      const y = startY + height * gap * index;
+    choices.forEach((choice, index) => {
+      const y = startY + (buttonHeight + gap) * index;
       createNeonButton(this, buttonX, y, buttonWidth, buttonHeight, choice.text, () => {
         getAudioManager(this.game).playSFX('sfx-choice');
         this.handleChoice(choice);
       }, {
-        fontSize: getResponsiveFontSize(width, 18, { min: 10 }),
+        fontSize: getResponsiveFontSize(width, 20, { min: 13, mobileScale: 0.7 }),
         strokeColor: 0x81c784,
         hoverFillColor: 0x1b3a32,
       });

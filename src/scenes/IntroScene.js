@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { CRISP_FONT, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { bindResponsiveScene, CRISP_FONT, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class IntroScene extends Phaser.Scene {
   constructor() {
@@ -15,6 +15,7 @@ export default class IntroScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const isMobile = width < 768;
+    bindResponsiveScene(this);
 
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayColor: 0x000000, overlayAlpha: 0.75 });
 

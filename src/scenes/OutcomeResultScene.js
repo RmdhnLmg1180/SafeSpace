@@ -1,7 +1,7 @@
 // src/scenes/OutcomeResultScene.js
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { cleanChoiceLabel, createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { bindResponsiveScene, cleanChoiceLabel, createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class OutcomeResultScene extends Phaser.Scene {
   constructor() {
@@ -26,6 +26,7 @@ export default class OutcomeResultScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const isMobile = width < 768;
     const audio = getAudioManager(this.game);
+    bindResponsiveScene(this, () => this.getSceneState());
     audio.playSFX('sfx-success');
 
     this.createBackground(width, height, isMobile);
@@ -112,5 +113,15 @@ export default class OutcomeResultScene extends Phaser.Scene {
     return createNeonButton(this, x, y, w, h, label, callback, {
       fontSize: getResponsiveFontSize(this.scale.width, w < 110 ? 14 : 18, { min: 10 }),
     });
+  }
+
+  getSceneState() {
+    return {
+      ending: this.ending,
+      chapter: this.chapter,
+      choices: this.choices,
+      mentalShield: this.mentalShield,
+      anxiety: this.anxiety,
+    };
   }
 }

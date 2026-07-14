@@ -6,13 +6,15 @@ import { SaveManager, getReflectionId } from '../utils/SaveManager';
 import {
   cleanChoiceList,
   cleanDisplayText,
-  CRISP_FONT,
+  bindResponsiveScene,
+  createDomScrollPanel,
   createFittedText,
   createGlassPanel,
   createNeonButton,
   createResponsiveBackground,
   getResponsiveFont,
   getResponsiveFontSize,
+  sanitizePlainText,
   safeLoadImage,
 } from '../utils/UIHelpers';
 
@@ -38,6 +40,7 @@ export default class ReflectionScene extends Phaser.Scene {
     const isMobile = width < 768;
     const audio = getAudioManager(this.game);
     audio.playMusic('music-reflection-theme');
+    bindResponsiveScene(this, () => this.getSceneState());
 
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayAlpha: 0.72 });
 
@@ -55,14 +58,14 @@ export default class ReflectionScene extends Phaser.Scene {
       { maxWidth: width * 0.88, maxHeight: 54, minFontSize: 20 },
     );
 
-    const ray = this.add.image(isMobile ? width * 0.5 : width * 0.17, isMobile ? height * 0.23 : height * 0.56, 'ray-relief');
-    const rayTargetHeight = isMobile ? Math.min(height * 0.15, 120) : Math.min(height * 0.42, 280);
+    const ray = this.add.image(isMobile ? width * 0.5 : width * 0.17, isMobile ? height * 0.2 : height * 0.56, 'ray-relief');
+    const rayTargetHeight = isMobile ? Math.min(height * 0.12, 92) : Math.min(height * 0.42, 280);
     ray.setScale(rayTargetHeight / ray.height);
 
     const panelX = isMobile ? width / 2 : width * 0.62;
-    const panelY = isMobile ? height * 0.6 : height * 0.5;
+    const panelY = isMobile ? height * 0.56 : height * 0.5;
     const panelWidth = isMobile ? width * 0.88 : width * 0.58;
-    const panelHeight = isMobile ? height * 0.5 : height * 0.56;
+    const panelHeight = isMobile ? height * 0.58 : height * 0.62;
 
     createGlassPanel(this, panelX, panelY, panelWidth, panelHeight, { fillAlpha: 0.9, strokeColor: 0x4fc3f7 });
 
@@ -88,8 +91,11 @@ export default class ReflectionScene extends Phaser.Scene {
         reflection = 'Refleksi otomatis belum tersedia, tapi pilihanmu tetap penting. Perhatikan tanda bahaya, jaga batas aman, dan minta bantuan saat tekanan terasa terlalu besar.';
       }
 
+      reflection = sanitizePlainText(reflection);
       this.reflectionRecord = this.persistReflection(reflection);
     }
+
+    reflection = sanitizePlainText(reflection);
 
     loadingText.destroy();
 
@@ -109,16 +115,24 @@ export default class ReflectionScene extends Phaser.Scene {
     scopeText.setDepth(32);
 
     const boxWidth = Math.round(panelWidth * (isMobile ? 0.82 : 0.86));
-    const boxHeight = Math.round(panelHeight * (isMobile ? 0.54 : 0.58));
-    const boxY = panelY + panelHeight * (isMobile ? 0.03 : 0.04);
+    const boxHeight = Math.round(panelHeight * (isMobile ? 0.56 : 0.6));
+    const boxY = panelY + panelHeight * 0.035;
     this.createReflectionScrollBox(panelX, boxY, boxWidth, boxHeight, reflection, isMobile);
 
-    if (this.reflectionRecord?.expiresAt) {
+    if (this.reflectionRecord?.savedAt) {
+      const savedDate = new Date(this.reflectionRecord.savedAt).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      });
+      const expiryDate = this.reflectionRecord.expiresAt
+        ? new Date(this.reflectionRecord.expiresAt).toLocaleDateString('id-ID')
+        : '-';
       const expiryText = createFittedText(
         this,
         panelX,
         panelY + panelHeight * 0.42,
-        `Tersimpan sampai ${new Date(this.reflectionRecord.expiresAt).toLocaleDateString('id-ID')}`,
+        `Disimpan ${savedDate}  •  Berlaku sampai ${expiryDate}`,
         {
           fontSize: getResponsiveFont(width, 14, { min: 10 }),
           color: '#a9c7d8',
@@ -148,7 +162,7 @@ export default class ReflectionScene extends Phaser.Scene {
     return SaveManager.saveReflection(this.reflectionId, {
       ...this.dataForReflection,
       reflectionId: this.reflectionId,
-      reflection,
+      reflection: sanitizePlainText(reflection),
     });
   }
 
@@ -165,63 +179,24 @@ export default class ReflectionScene extends Phaser.Scene {
 
     return {
       ...data,
+      reflection: data.reflection ? sanitizePlainText(data.reflection) : undefined,
       choices: cleanChoiceList(data.choices || []),
       storyResults,
     };
   }
 
   createReflectionScrollBox(panelX, panelY, boxWidth, boxHeight, reflection, isMobile) {
-    const safeText = this.escapeHtml(this.cleanReflectionText(reflection));
-    const fontSize = isMobile ? 14 : 17;
-    const outerStyle = [
-      `width:${boxWidth}px`,
-      `height:${boxHeight}px`,
-      'overflow:hidden',
-      'box-sizing:border-box',
-      'border-radius:12px',
-      'background:rgba(4, 13, 29, 0.43)',
-      'contain:paint',
-      'pointer-events:auto',
-    ].join(';');
-
-    const innerStyle = [
-      'width:100%',
-      'height:100%',
-      'overflow-y:auto',
-      'overflow-x:hidden',
-      'box-sizing:border-box',
-      'padding:11px 13px 14px',
-      `font-family:${CRISP_FONT}`,
-      `font-size:${fontSize}px`,
-      'font-weight:650',
-      'line-height:1.55',
-      'color:#ffffff',
-      'text-align:left',
-      'white-space:pre-wrap',
-      'overflow-wrap:anywhere',
-      '-webkit-font-smoothing:antialiased',
-      'text-rendering:geometricPrecision',
-    ].join(';');
-
-    this.add
-      .dom(panelX, panelY, 'div', outerStyle, `<div style="${innerStyle}">${safeText}</div>`)
-      .setOrigin(0.5)
-      .setDepth(30);
+    return createDomScrollPanel(this, panelX, panelY, boxWidth, boxHeight, this.cleanReflectionText(reflection), {
+      fontSize: isMobile ? 14 : 17,
+      fontWeight: 600,
+      lineHeight: 1.6,
+      paddingX: isMobile ? 13 : 18,
+      paddingY: isMobile ? 12 : 16,
+    });
   }
 
   cleanReflectionText(value = '') {
-    return String(value)
-      .replace(/\s*\(\s*game\s*over\s*\)\s*/gi, '')
-      .trim();
-  }
-
-  escapeHtml(value = '') {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return sanitizePlainText(value);
   }
 
   getReflectionScopeLabel() {
@@ -238,5 +213,16 @@ export default class ReflectionScene extends Phaser.Scene {
     SaveManager.deleteReflection(this.reflectionId);
     SaveManager.deleteSave(this.dataForReflection.storyMode === 'linear' ? 'linear' : this.dataForReflection.chapter || 1);
     this.scene.start('ChapterSelectionScene');
+  }
+
+  getSceneState() {
+    return {
+      ...this.dataForReflection,
+      reflectionId: this.reflectionId,
+      reflection: this.reflectionRecord?.reflection,
+      savedAt: this.reflectionRecord?.savedAt,
+      expiresAt: this.reflectionRecord?.expiresAt,
+      fromSaved: Boolean(this.reflectionRecord),
+    };
   }
 }

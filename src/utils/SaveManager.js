@@ -2,6 +2,7 @@
 const SAVE_KEY = 'safe_space_saves';
 const REFLECTION_KEY = 'safe_space_reflections';
 const REFLECTION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const SAVE_VERSION = 2;
 
 function readStorage(key) {
   try {
@@ -13,7 +14,49 @@ function readStorage(key) {
 }
 
 function writeStorage(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.warn(`SAFE-SPACE gagal menyimpan ${key}:`, error);
+    return false;
+  }
+}
+
+function clampNumber(value, fallback, min, max) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+function normalizeSlot(slot, chapter = 1) {
+  if (slot === 'linear') return 'linear';
+  const numeric = clampNumber(slot ?? chapter, chapter, 1, 3);
+  return String(Math.round(numeric));
+}
+
+function cloneSerializable(value, fallback) {
+  try {
+    return JSON.parse(JSON.stringify(value ?? fallback));
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeSave(data = {}, existing = {}) {
+  const currentChapter = Math.round(clampNumber(data.currentChapter, 1, 1, 3));
+  const now = Date.now();
+  return {
+    version: SAVE_VERSION,
+    currentChapter,
+    currentDay: Math.round(clampNumber(data.currentDay, 1, 1, 7)),
+    mentalShield: Math.round(clampNumber(data.mentalShield, 0, 0, 100)),
+    mentalState: Math.round(clampNumber(data.mentalState, 100, 0, 100)),
+    playerChoices: cloneSerializable(data.playerChoices, []),
+    storyMode: data.storyMode === 'linear' ? 'linear' : 'single',
+    flowResults: cloneSerializable(data.flowResults, {}),
+    createdAt: existing.createdAt || data.createdAt || now,
+    timestamp: now,
+  };
 }
 
 function readSaves() {
@@ -48,31 +91,35 @@ function purgeExpiredReflections(reflections) {
 export const SaveManager = {
   saveGame(slot, data) {
     const saves = this.getAllSaves();
-    saves[slot] = {
-      ...data,
-      timestamp: Date.now(),
-    };
-    writeStorage(SAVE_KEY, saves);
+    const normalizedSlot = normalizeSlot(slot, data?.currentChapter);
+    saves[normalizedSlot] = normalizeSave(data, saves[normalizedSlot]);
+    return writeStorage(SAVE_KEY, saves) ? saves[normalizedSlot] : null;
   },
   loadGame(slot) {
     const saves = this.getAllSaves();
-    return saves[slot] || null;
+    return saves[normalizeSlot(slot)] || null;
   },
   deleteSave(slot) {
     const saves = this.getAllSaves();
-    delete saves[slot];
-    writeStorage(SAVE_KEY, saves);
+    delete saves[normalizeSlot(slot)];
+    return writeStorage(SAVE_KEY, saves);
   },
   getAllSaves() {
-    return readSaves();
+    const stored = readSaves();
+    return Object.fromEntries(
+      Object.entries(stored)
+        .filter(([, data]) => data && typeof data === 'object')
+        .map(([slot, data]) => [normalizeSlot(slot, data.currentChapter), { ...normalizeSave(data, data), timestamp: Number(data.timestamp) || Date.now() }]),
+    );
   },
   continueLastGame() {
     const saves = this.getAllSaves();
     let lastSlot = null;
     let lastTime = 0;
     Object.entries(saves).forEach(([slot, data]) => {
-      if (data.timestamp > lastTime) {
-        lastTime = data.timestamp;
+      const savedTime = Number(data.timestamp) || 0;
+      if (savedTime > lastTime) {
+        lastTime = savedTime;
         lastSlot = slot;
       }
     });
@@ -89,8 +136,7 @@ export const SaveManager = {
       expiresAt: savedAt + REFLECTION_TTL_MS,
     };
 
-    writeStorage(REFLECTION_KEY, reflections);
-    return reflections[id];
+    return writeStorage(REFLECTION_KEY, reflections) ? reflections[id] : null;
   },
   loadReflection(id) {
     const reflections = this.getAllReflections();

@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { bindResponsiveScene, createFittedText, createNeonButton, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class LoadGameScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +17,7 @@ export default class LoadGameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const isMobile = width < 768;
     const audio = getAudioManager(this.game);
+    bindResponsiveScene(this);
 
     this.createBackground(width, height, isMobile);
 
@@ -76,21 +77,22 @@ export default class LoadGameScene extends Phaser.Scene {
       { origin: [0, 0.5], maxWidth: w * 0.5, maxHeight: 28, minFontSize: 11 },
     );
 
+    const chapterNames = { 1: 'Cyberbullying', 2: 'Body Shaming', 3: 'Cyber Grooming' };
     const detail = data
-      ? `Chapter ${data.currentChapter || 1} | Day ${data.currentDay || 1} | Shield ${data.mentalShield ?? 0} | Anxiety ${data.mentalState ?? 0}\n${new Date(data.timestamp).toLocaleString()}`
+      ? `${chapterNames[data.currentChapter] || 'Cyberbullying'} • Hari ${data.currentDay || 1}\nShield ${data.mentalShield ?? 0}% • Anxiety ${100 - (data.mentalState ?? 100)}%\n${new Date(data.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`
       : 'Kosong';
 
     createFittedText(
       this,
       x - w * 0.43,
-      y - h * 0.02,
+      y - h * 0.12,
       detail,
       {
         fontSize: isMobile ? '12px' : '16px',
         color: data ? '#d9e9f2' : '#8fa6b8',
         lineSpacing: isMobile ? 3 : 6,
       },
-      { origin: [0, 0.5], maxWidth: w * 0.54, maxHeight: h * 0.48, minFontSize: 9 },
+      { origin: [0, 0], maxWidth: w * 0.54, maxHeight: h * 0.58, minFontSize: 9 },
     );
 
     if (!data) return;

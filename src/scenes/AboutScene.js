@@ -1,7 +1,7 @@
 // src/scenes/AboutScene.js
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, createScrollableTextBox, getResponsiveFont, getResponsiveFontSize, safeLoadImage, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
+import { bindResponsiveScene, createDomScrollPanel, createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize, safeLoadImage, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
 
 export default class AboutScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +16,7 @@ export default class AboutScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const isMobile = width < 768;
+    bindResponsiveScene(this);
 
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.6, overlayAlpha: 0.72 });
 
@@ -29,7 +30,7 @@ export default class AboutScene extends Phaser.Scene {
     setResponsiveLogoDisplaySize(this, logo, {
       desktopWidth: width * 0.18,
       tabletWidth: width * 0.24,
-      mobileWidth: width * 0.32,
+      mobileWidth: width * 0.58,
       desktopX: width / 2,
       desktopY: height * 0.13,
       mobileY: height * 0.13,
@@ -49,26 +50,20 @@ export default class AboutScene extends Phaser.Scene {
     );
 
     const creditText =
-      '\n\nDikembangkan oleh:\nAhmad Najmi\nArfa Khalifano Fatizio\n\n' +
+      'Dikembangkan oleh:\nAhmad Najmi\nArfa Khalifano Fatizio\n\n' +
       'Peserta Lomba OPSI\nSMP Negeri 8 Yogyakarta\n\n' +
       'Dibimbing oleh:\nMuhammad Abdul Aziz, S.Pd.\n\n' +
       'Tujuan Pengembangan:\nMeningkatkan kesadaran remaja terhadap pentingnya kesehatan mental digital serta memberikan edukasi preventif terkait:\n\n' +
-      '- Cyberbullying\n- Body Shaming\n- Cyber Grooming\n- Pencegahan Self-Harm\n\n';
+      '• Cyberbullying\n• Body Shaming\n• Cyber Grooming\n• Pencegahan Self-Harm';
 
-    createScrollableTextBox(
+    createDomScrollPanel(
       this,
       width / 2,
-      height * 0.57,
+      height * 0.58,
       width * (isMobile ? 0.78 : 0.66),
       height * (isMobile ? 0.38 : 0.42),
       creditText.trim(),
-      {
-        fontSize: getResponsiveFont(width, 22, { min: 13 }),
-        color: '#ffffff',
-        align: 'center',
-        lineSpacing: isMobile ? 5 : 8,
-      },
-      { padding: isMobile ? 10 : 18 },
+      { fontSize: isMobile ? 13 : 17, align: 'center', lineHeight: 1.55, paddingX: isMobile ? 12 : 24 },
     );
 
     createFittedText(

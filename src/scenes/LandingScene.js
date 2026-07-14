@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
-import { createFittedText, createNeonButton, createResponsiveBackground, safeLoadImage, setResponsiveLogoDisplaySize, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
+import { bindResponsiveScene, createFittedText, createNeonButton, createResponsiveBackground, safeLoadImage, setResponsiveLogoDisplaySize, getResponsiveFont, getResponsiveFontSize } from '../utils/UIHelpers';
 
 export default class LandingScene extends Phaser.Scene {
   constructor() {
@@ -16,16 +16,7 @@ export default class LandingScene extends Phaser.Scene {
   create() {
     this.renderScene();
     getAudioManager(this.game).playMusic('music-main-theme');
-
-    let resizeTimer;
-
-    this.scale.on('resize', () => {
-      clearTimeout(resizeTimer);
-
-      resizeTimer = setTimeout(() => {
-        this.scene.restart();
-      }, 100);
-    });
+    bindResponsiveScene(this);
   }
 
   renderScene() {
@@ -41,7 +32,7 @@ export default class LandingScene extends Phaser.Scene {
     setResponsiveLogoDisplaySize(this, logo, {
       desktopWidth: width * 0.26,
       tabletWidth: width * 0.28,
-      mobileWidth: width * 0.35,
+      mobileWidth: width * 0.64,
       desktopX: width * 0.22,
       desktopY: height * 0.18,
       mobileY: height * 0.13,

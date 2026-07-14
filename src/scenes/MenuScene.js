@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../utils/SaveManager';
 import { getAudioManager } from '../utils/AudioManager';
-import { CRISP_FONT, createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
+import { bindResponsiveScene, CRISP_FONT, createNeonButton, createResponsiveBackground, getResponsiveFontSize, safeLoadImage, setResponsiveLogoDisplaySize } from '../utils/UIHelpers';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +17,7 @@ export default class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const isMobile = width < 768;
+    bindResponsiveScene(this);
 
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayAlpha: 0.75 });
 
@@ -29,15 +30,15 @@ export default class MenuScene extends Phaser.Scene {
 
   createMobileMenu(width, height) {
     // Logo
-    const logo = this.add.image(width / 2, Math.max(44, height * 0.065), 'logo').setDepth(20);
-    setResponsiveLogoDisplaySize(this, logo, { mobileWidth: width * 0.31, mobileY: Math.max(44, height * 0.065) });
+    const logo = this.add.image(width / 2, Math.max(50, height * 0.09), 'logo').setDepth(30);
+    setResponsiveLogoDisplaySize(this, logo, { mobileWidth: width * 0.7, mobileY: Math.max(56, height * 0.1) });
 
     // Gear
-    this.createGearButton(width - 60, 70);
+    this.createGearButton(width - 42, 42);
 
     // Ray
-    const ray = this.add.image(width / 2, height * 0.32, 'ray').setDepth(5);
-    ray.setScale(0.118);
+    const ray = this.add.image(width / 2, height * 0.31, 'ray').setDepth(5);
+    ray.setScale(Math.min(height * 0.22, 150) / ray.height);
 
     this.tweens.add({
       targets: ray,
@@ -78,7 +79,7 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   createDesktopMenu(width, height) {
-    const logo = this.add.image(width * 0.2, height * 0.18, 'logo');
+    const logo = this.add.image(width * 0.2, height * 0.18, 'logo').setDepth(20);
     setResponsiveLogoDisplaySize(this, logo, {
       desktopWidth: width * 0.24,
       tabletWidth: width * 0.26,
@@ -88,8 +89,8 @@ export default class MenuScene extends Phaser.Scene {
 
     this.createGearButton(width - 80, 70);
 
-    const ray = this.add.image(width * 0.72, height * 0.57, 'ray');
-    ray.setScale(0.18);
+    const ray = this.add.image(width * 0.72, height * 0.57, 'ray').setDepth(5);
+    ray.setScale(Math.min(height * 0.56, 440) / ray.height);
 
     this.tweens.add({
       targets: ray,

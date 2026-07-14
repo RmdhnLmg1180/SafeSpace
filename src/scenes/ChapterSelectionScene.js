@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { getAudioManager } from '../utils/AudioManager';
 import { SaveManager, getReflectionId } from '../utils/SaveManager';
-import { createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
+import { bindResponsiveScene, createFittedText, createGlassPanel, createNeonButton, createResponsiveBackground, getResponsiveFont, getResponsiveFontSize, safeLoadImage } from '../utils/UIHelpers';
 
 export default class ChapterSelectionScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +16,7 @@ export default class ChapterSelectionScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const isMobile = width < 768;
     const audio = getAudioManager(this.game);
+    bindResponsiveScene(this);
 
     createResponsiveBackground(this, 'landingBg', { mobileFocalX: 0.62, overlayAlpha: 0.72 });
 
